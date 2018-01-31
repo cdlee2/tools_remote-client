@@ -1,19 +1,28 @@
 licenses(["notice"])  # Apache 2.0
 
 java_library(
+    name = "auth",
+    exports = [
+        "//external:google_auth_creds",
+        "//external:google_auth_oauth2",
+    ],
+    runtime_deps = [
+        "@google_http_client_jackson2_maven//jar",
+        "@google_http_client_maven//jar",
+        "@jackson2_maven//jar",
+    ],
+)
+
+java_library(
     name = "client",
     srcs = glob(["*.java"]),
     visibility = ["//:__subpackages__"],
     runtime_deps = [
         # Needed for tls client.
-        "@google_http_client_maven//jar",
-        "@google_http_client_jackson2_maven//jar",
-        "@jackson2_maven//jar",
         "@netty_tcnative_maven//jar",
     ],
     deps = [
-        "//external:google_auth_creds",
-        "//external:google_auth_oauth2",
+        ":auth",
         "//external:guava",
         "//external:jcommander",
         "@com_google_code_findbugs_jsr305//jar",

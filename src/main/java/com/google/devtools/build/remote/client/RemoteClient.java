@@ -15,6 +15,7 @@
 package com.google.devtools.build.remote.client;
 
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
 import com.google.common.hash.Hashing;
 import com.google.devtools.remoteexecution.v1test.RequestMetadata;
 import com.google.devtools.remoteexecution.v1test.ToolDetails;
@@ -27,12 +28,20 @@ public class RemoteClient {
     AuthAndTLSOptions authAndTlsOptions = new AuthAndTLSOptions();
     RemoteOptions remoteOptions = new RemoteOptions();
     RemoteClientOptions remoteClientOptions = new RemoteClientOptions();
-    JCommander.newBuilder()
+    JCommander optionsParser = JCommander.newBuilder()
         .addObject(authAndTlsOptions)
         .addObject(remoteOptions)
         .addObject(remoteClientOptions)
-        .build()
-        .parse(args);
+        .build();
+
+    try {
+      optionsParser.parse(args);
+    } catch (ParameterException e) {
+      System.err.println("Unable to parse options: " + e.getLocalizedMessage());
+      optionsParser.usage();
+      return;
+    }
+
     DigestUtil digestUtil = new DigestUtil(Hashing.sha256());
     AbstractRemoteActionCache cache;
 

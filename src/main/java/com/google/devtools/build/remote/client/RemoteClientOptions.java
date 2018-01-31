@@ -24,6 +24,9 @@ import java.util.List;
 
 @Parameters(separators = "=")
 public final class RemoteClientOptions {
+  @Parameter(names = "--help", description = "This message.", help = true)
+  private boolean help;
+
   @Parameter(
       names = "--digest",
       converter = DigestConverter.class,
