@@ -36,10 +36,22 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
 
   public GrpcRemoteCache(RemoteOptions options, AuthAndTLSOptions authAndTLSOptions,
       DigestUtil digestUtil) throws IOException {
+    this(
+        GoogleAuthUtils.newChannel(options.remoteCache, authAndTLSOptions),
+        GoogleAuthUtils.newCallCredentials(authAndTLSOptions),
+        options,
+        digestUtil);
+  }
+
+  public GrpcRemoteCache(
+      Channel channel,
+      CallCredentials credentials,
+      RemoteOptions options,
+      DigestUtil digestUtil) {
     super(digestUtil);
     this.options = options;
-    this.credentials = GoogleAuthUtils.newCallCredentials(authAndTLSOptions);
-    this.channel = GoogleAuthUtils.newChannel(options.remoteCache, authAndTLSOptions);
+    this.credentials = credentials;
+    this.channel = channel;
   }
 
   public static boolean isRemoteCacheOptions(RemoteOptions options) {

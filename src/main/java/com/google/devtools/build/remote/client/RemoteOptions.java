@@ -44,5 +44,5 @@ public final class RemoteOptions {
       names = "--remote_instance_name",
       description = "Value to pass as instance_name in the remote execution API."
   )
-  public String remoteInstanceName = null;
+  public String remoteInstanceName = "";
 }

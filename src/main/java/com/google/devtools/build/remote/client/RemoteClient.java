@@ -42,6 +42,11 @@ public class RemoteClient {
       return;
     }
 
+    if (remoteClientOptions.digest == null) {
+      System.err.println("Please specify a digest for a blob to download.");
+      return;
+    }
+
     DigestUtil digestUtil = new DigestUtil(Hashing.sha256());
     AbstractRemoteActionCache cache;
 
@@ -53,7 +58,7 @@ public class RemoteClient {
                 .build();
         TracingMetadataUtils.contextWithMetadata(metadata).attach();
     } else {
-      throw new IllegalAccessException("Only GRPC remote cache supported currently.");
+      throw new IllegalAccessException("Only gRPC remote cache supported currently.");
     }
 
     OutputStream output;

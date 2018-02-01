@@ -1,73 +1,6 @@
-maven_jar(
-    name = "guava_maven",
-    artifact = "com.google.guava:guava:19.0",
-)
+workspace(name = "remote_client")
 
-bind(
-    name = "guava",
-    actual = "@guava_maven//jar",
-)
-
-maven_jar(
-    name = "jcommander_maven",
-    artifact = "com.beust:jcommander:1.72",
-)
-
-bind(
-    name = "jcommander",
-    actual = "@jcommander_maven//jar",
-)
-
-maven_jar(
-    name = "netty_maven",
-    artifact = "io.netty:netty:3.10.6.Final",
-)
-
-bind(
-    name = "netty",
-    actual = "@netty_maven//jar",
-)
-
-maven_jar(
-    name = "google_auth_oauth2_maven",
-    artifact = "com.google.auth:google-auth-library-oauth2-http:0.9.0"
-)
-
-bind(
-    name = "google_auth_oauth2",
-    actual = "@google_auth_oauth2_maven//jar",
-)
-
-maven_jar(
-    name = "google_auth_creds_maven",
-    artifact = "com.google.auth:google-auth-library-credentials:0.9.0",
-)
-
-bind(
-    name = "google_auth_creds",
-    actual = "@google_auth_creds_maven//jar",
-)
-
-maven_jar(
-    name = "google_http_client_maven",
-    artifact = "com.google.http-client:google-http-client:1.23.0",
-)
-
-maven_jar(
-    name = "google_http_client_jackson2_maven",
-    artifact = "com.google.http-client:google-http-client-jackson2:1.23.0",
-)
-
-maven_jar(
-    name = "jackson2_maven",
-    artifact = "com.fasterxml.jackson.core:jackson-core:2.9.4",
-)
-
-maven_jar(
-    name = "netty_tcnative_maven",
-    artifact = "io.netty:netty-tcnative-boringssl-static:2.0.7.Final",
-)
-
+# Needed for "well-known protos" and @com_google_protobuf//:protoc.
 http_archive(
     name = "com_google_protobuf",
     sha256 = "091d4263d9a55eccb6d3c8abde55c26eaaa933dea9ecabb185cdf3795f9b5ca2",
@@ -75,8 +8,7 @@ http_archive(
     urls = ["https://github.com/google/protobuf/archive/v3.5.1.1.zip"],
 )
 
-# This commit of grpc-java is used instead of the latest released version since the latest released
-# version (1.9.0) has a few problems with being used as an external bazel workspace.
+# Needed for @grpc_java//compiler:grpc_java_plugin.
 http_archive(
     name = "grpc_java",
     sha256 = "000a6f8579f1b93e5d1b085c29d89dbc1ea8b5a0c16d7427f42715f0d7f0b247",
@@ -92,6 +24,6 @@ new_http_archive(
     build_file = "BUILD.googleapis",
 )
 
-load("@grpc_java//:repositories.bzl", "grpc_java_repositories")
+load("//3rdparty:workspace.bzl", "maven_dependencies", "declare_maven")
 
-grpc_java_repositories(omit_com_google_protobuf=True)
+maven_dependencies(declare_maven)

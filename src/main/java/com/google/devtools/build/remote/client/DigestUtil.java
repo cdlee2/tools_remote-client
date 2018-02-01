@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.remote.client;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -38,6 +40,10 @@ public class DigestUtil {
    */
   public Digest compute(Message message) {
     return compute(message.toByteArray());
+  }
+
+  public Digest computeAsUtf8(String str) {
+    return compute(str.getBytes(UTF_8));
   }
 
   public static Digest buildDigest(String hexHash, long size) {
