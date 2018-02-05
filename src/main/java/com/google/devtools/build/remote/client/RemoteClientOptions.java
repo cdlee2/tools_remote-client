@@ -19,29 +19,29 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.devtools.remoteexecution.v1test.Digest;
-import java.util.ArrayList;
-import java.util.List;
 
+/** Options for operation of a remote client. */
 @Parameters(separators = "=")
 public final class RemoteClientOptions {
   @Parameter(names = "--help", description = "This message.", help = true)
   private boolean help;
 
   @Parameter(
-      names = "--digest",
-      converter = DigestConverter.class,
-      description = "A blob digest to download in the format hex_hash/size_bytes."
+    names = "--digest",
+    converter = DigestConverter.class,
+    description = "A blob digest to download in the format hex_hash/size_bytes."
   )
   public Digest digest = null;
 
   @Parameter(
-      names = "--output",
-      description =
-          "If specified, a path to download the blob into. "
-              + "Otherwise, contents will be printed to stdout."
+    names = "--output",
+    description =
+        "If specified, a path to download the blob into. "
+            + "Otherwise, contents will be printed to stdout."
   )
   public String output = null;
 
+  /** Converter for hex_hash/size_bytes string to a Digest object. */
   public static class DigestConverter implements IStringConverter<Digest> {
     @Override
     public Digest convert(String input) {

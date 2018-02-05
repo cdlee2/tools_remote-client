@@ -24,8 +24,8 @@ import com.google.bytestream.ByteStreamProto.ReadRequest;
 import com.google.bytestream.ByteStreamProto.ReadResponse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
-import com.google.common.jimfs.Jimfs;
 import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
 import com.google.devtools.remoteexecution.v1test.Digest;
 import com.google.devtools.remoteexecution.v1test.RequestMetadata;
 import com.google.devtools.remoteexecution.v1test.ToolDetails;
@@ -54,6 +54,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Tests for {@link GrpcRemoteCache}. */
 @RunWith(JUnit4.class)
 public class GrpcRemoteCacheTest {
 
@@ -74,9 +75,9 @@ public class GrpcRemoteCacheTest {
             .start();
 
     RequestMetadata testMetadata =
-        RequestMetadata.newBuilder().setToolDetails(
-            ToolDetails.newBuilder().setToolName("TEST"))
-        .build();
+        RequestMetadata.newBuilder()
+            .setToolDetails(ToolDetails.newBuilder().setToolName("TEST"))
+            .build();
     Context withEmptyMetaData = TracingMetadataUtils.contextWithMetadata(testMetadata);
     withEmptyMetaData.attach();
   }
@@ -120,8 +121,7 @@ public class GrpcRemoteCacheTest {
 
     CallCredentials creds =
         GoogleAuthUtils.newCallCredentials(
-            Files.newInputStream(credsPath),
-            authTlsOptions.googleAuthScopes);
+            Files.newInputStream(credsPath), authTlsOptions.googleAuthScopes);
 
     RemoteOptions remoteOptions = new RemoteOptions();
     return new GrpcRemoteCache(
@@ -130,8 +130,7 @@ public class GrpcRemoteCacheTest {
             ImmutableList.of(new CallCredentialsInterceptor(creds))),
         creds,
         remoteOptions,
-        DIGEST_UTIL
-    );
+        DIGEST_UTIL);
   }
 
   @Test

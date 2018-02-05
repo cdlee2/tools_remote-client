@@ -16,9 +16,7 @@ package com.google.devtools.build.remote.client;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.devtools.remoteexecution.v1test.Digest;
 import com.google.protobuf.Message;
 

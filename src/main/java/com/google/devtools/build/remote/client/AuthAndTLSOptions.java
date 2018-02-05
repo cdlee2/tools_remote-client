@@ -21,60 +21,58 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 
-/**
- * Common options for authentication and TLS.
- */
-
+/** Common options for authentication and TLS. */
 @Parameters(separators = "=")
 public final class AuthAndTLSOptions {
   @Parameter(
-      names = "--google_default_credentials",
-      arity = 1,
-      description =
-         "Whether to use 'Google Application Default Credentials' for authentication." +
-             " See https://cloud.google.com/docs/authentication for details. Disabled by default."
+    names = "--google_default_credentials",
+    arity = 1,
+    description =
+        "Whether to use 'Google Application Default Credentials' for authentication."
+            + " See https://cloud.google.com/docs/authentication for details. Disabled by default."
   )
   public boolean useGoogleDefaultCredentials = false;
 
   @Parameter(
-      names = "--google_auth_scopes",
-      listConverter = CommaSeparatedOptionListConverter.class,
-      description = "A comma-separated list of Google Cloud authentication scopes."
+    names = "--google_auth_scopes",
+    listConverter = CommaSeparatedOptionListConverter.class,
+    description = "A comma-separated list of Google Cloud authentication scopes."
   )
   public List<String> googleAuthScopes =
       ImmutableList.of("https://www.googleapis.com/auth/cloud-platform");
 
   @Parameter(
-      names = "--google_credentials",
-      description =
-          "Specifies the file to get authentication credentials from. See "
-              + "https://cloud.google.com/docs/authentication for details"
+    names = "--google_credentials",
+    description =
+        "Specifies the file to get authentication credentials from. See "
+            + "https://cloud.google.com/docs/authentication for details"
   )
   public String googleCredentials = null;
 
   @Parameter(
-      names = "--tls_enabled",
-      arity = 1,
-      description =
-          "Specifies whether to use TLS for remote execution/caching and the build event service"
-              + " (BES)."
+    names = "--tls_enabled",
+    arity = 1,
+    description =
+        "Specifies whether to use TLS for remote execution/caching and the build event service"
+            + " (BES)."
   )
   public boolean tlsEnabled = false;
 
   @Parameter(
-      names = "--tls_certificate",
-      description = "Specify the TLS client certificate to use."
+    names = "--tls_certificate",
+    description = "Specify the TLS client certificate to use."
   )
   public String tlsCertificate = null;
 
   @Parameter(
-      names = "tls_authority_override",
-      description =
-          "TESTING ONLY! Can be used with a self-signed certificate to consider the specified "
-              + "value a valid TLS authority."
+    names = "tls_authority_override",
+    description =
+        "TESTING ONLY! Can be used with a self-signed certificate to consider the specified "
+            + "value a valid TLS authority."
   )
   public String tlsAuthorityOverride = null;
 
+  /** A converter for splitting comma-separated string inputs into lists of strings. */
   public static class CommaSeparatedOptionListConverter implements IStringConverter<List<String>> {
     @Override
     public List<String> convert(String input) {
@@ -85,5 +83,4 @@ public final class AuthAndTLSOptions {
       }
     }
   }
-
 }

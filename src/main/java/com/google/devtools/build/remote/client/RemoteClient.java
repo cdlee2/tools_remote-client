@@ -23,16 +23,18 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
+/** A standalone client for interacting with remote caches in Bazel. */
 public class RemoteClient {
   public static void main(String[] args) throws Exception {
     AuthAndTLSOptions authAndTlsOptions = new AuthAndTLSOptions();
     RemoteOptions remoteOptions = new RemoteOptions();
     RemoteClientOptions remoteClientOptions = new RemoteClientOptions();
-    JCommander optionsParser = JCommander.newBuilder()
-        .addObject(authAndTlsOptions)
-        .addObject(remoteOptions)
-        .addObject(remoteClientOptions)
-        .build();
+    JCommander optionsParser =
+        JCommander.newBuilder()
+            .addObject(authAndTlsOptions)
+            .addObject(remoteOptions)
+            .addObject(remoteClientOptions)
+            .build();
 
     try {
       optionsParser.parse(args);
@@ -51,12 +53,12 @@ public class RemoteClient {
     AbstractRemoteActionCache cache;
 
     if (GrpcRemoteCache.isRemoteCacheOptions(remoteOptions)) {
-        cache = new GrpcRemoteCache(remoteOptions, authAndTlsOptions, digestUtil);
-        RequestMetadata metadata =
-            RequestMetadata.newBuilder()
-                .setToolDetails(ToolDetails.newBuilder().setToolName("remote_client"))
-                .build();
-        TracingMetadataUtils.contextWithMetadata(metadata).attach();
+      cache = new GrpcRemoteCache(remoteOptions, authAndTlsOptions, digestUtil);
+      RequestMetadata metadata =
+          RequestMetadata.newBuilder()
+              .setToolDetails(ToolDetails.newBuilder().setToolName("remote_client"))
+              .build();
+      TracingMetadataUtils.contextWithMetadata(metadata).attach();
     } else {
       throw new IllegalAccessException("Only gRPC remote cache supported currently.");
     }

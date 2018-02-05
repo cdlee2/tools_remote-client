@@ -34,11 +34,10 @@ import java.io.InputStream;
 import java.util.List;
 import javax.annotation.Nullable;
 
-
 /**
  * Utility methods for using {@link AuthAndTLSOptions} with Google Cloud.
  *
- * This code in this file was directly copied from the main Bazel git repository at commit hash
+ * <p>This code in this file was directly copied from the main Bazel git repository at commit hash
  * e24fe4dbc62e2c9081e915b5318ed3e5ee47a76a.
  */
 public final class GoogleAuthUtils {
@@ -139,7 +138,6 @@ public final class GoogleAuthUtils {
       return newCredentials(
           null /* Google Application Default Credentials */, options.googleAuthScopes);
     }
-
 
     return null;
   }

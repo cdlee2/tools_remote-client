@@ -69,5 +69,4 @@ public class TracingMetadataUtils {
   public static ClientInterceptor attachMetadataFromContextInterceptor() {
     return MetadataUtils.newAttachHeadersInterceptor(headersFromCurrentContext());
   }
-
 }

@@ -19,17 +19,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /** A cache for storing artifacts (input and output) as well as the output of running an action. */
-public abstract class AbstractRemoteActionCache implements AutoCloseable {
+public abstract class AbstractRemoteActionCache {
   protected final DigestUtil digestUtil;
 
   public AbstractRemoteActionCache(DigestUtil digestUtil) {
     this.digestUtil = digestUtil;
   }
 
-  /**
-   * Downloads a single blob with the specified digest into an output stream.
-   */
+  /** Downloads a single blob with the specified digest into an output stream. */
   public abstract void downloadBlob(Digest digest, OutputStream dest) throws IOException;
-
-
 }

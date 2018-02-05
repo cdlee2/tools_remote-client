@@ -20,22 +20,24 @@ import com.google.bytestream.ByteStreamProto.ReadRequest;
 import com.google.bytestream.ByteStreamProto.ReadResponse;
 import com.google.devtools.remoteexecution.v1test.Digest;
 import io.grpc.CallCredentials;
+import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.io.OutputStream;
-import io.grpc.Channel;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
+/** A RemoteActionCache implementation that uses gRPC calls to a remote cache server. */
 public class GrpcRemoteCache extends AbstractRemoteActionCache {
 
   private final RemoteOptions options;
   private final CallCredentials credentials;
   private final Channel channel;
 
-  public GrpcRemoteCache(RemoteOptions options, AuthAndTLSOptions authAndTLSOptions,
-      DigestUtil digestUtil) throws IOException {
+  public GrpcRemoteCache(
+      RemoteOptions options, AuthAndTLSOptions authAndTLSOptions, DigestUtil digestUtil)
+      throws IOException {
     this(
         GoogleAuthUtils.newChannel(options.remoteCache, authAndTLSOptions),
         GoogleAuthUtils.newCallCredentials(authAndTLSOptions),
@@ -44,10 +46,7 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
   }
 
   public GrpcRemoteCache(
-      Channel channel,
-      CallCredentials credentials,
-      RemoteOptions options,
-      DigestUtil digestUtil) {
+      Channel channel, CallCredentials credentials, RemoteOptions options, DigestUtil digestUtil) {
     super(digestUtil);
     this.options = options;
     this.credentials = credentials;
@@ -80,8 +79,8 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
     }
     resourceName += "blobs/" + digest.getHash() + "/" + digest.getSizeBytes();
     try {
-      Iterator<ReadResponse> replies = bsBlockingStub()
-          .read(ReadRequest.newBuilder().setResourceName(resourceName).build());
+      Iterator<ReadResponse> replies =
+          bsBlockingStub().read(ReadRequest.newBuilder().setResourceName(resourceName).build());
       while (replies.hasNext()) {
         replies.next().getData().writeTo(stream);
       }
@@ -92,7 +91,4 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
       throw e;
     }
   }
-
-  @Override
-  public void close() {}
 }
