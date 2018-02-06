@@ -65,7 +65,7 @@ public final class AuthAndTLSOptions {
   public String tlsCertificate = null;
 
   @Parameter(
-    names = "tls_authority_override",
+    names = "--tls_authority_override",
     description =
         "TESTING ONLY! Can be used with a self-signed certificate to consider the specified "
             + "value a valid TLS authority."
