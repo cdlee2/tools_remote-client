@@ -18,13 +18,24 @@ import com.google.bytestream.ByteStreamGrpc;
 import com.google.bytestream.ByteStreamGrpc.ByteStreamBlockingStub;
 import com.google.bytestream.ByteStreamProto.ReadRequest;
 import com.google.bytestream.ByteStreamProto.ReadResponse;
+import com.google.devtools.remoteexecution.v1test.ContentAddressableStorageGrpc;
+import com.google.devtools.remoteexecution.v1test.ContentAddressableStorageGrpc.ContentAddressableStorageBlockingStub;
 import com.google.devtools.remoteexecution.v1test.Digest;
+import com.google.devtools.remoteexecution.v1test.Directory;
+import com.google.devtools.remoteexecution.v1test.GetTreeRequest;
+import com.google.devtools.remoteexecution.v1test.GetTreeResponse;
+import com.google.devtools.remoteexecution.v1test.Tree;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.Status;
+import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
@@ -57,11 +68,86 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
     return options.remoteCache != null;
   }
 
+  private ContentAddressableStorageBlockingStub casBlockingStub() {
+    return ContentAddressableStorageGrpc.newBlockingStub(channel)
+        .withInterceptors(TracingMetadataUtils.attachMetadataFromContextInterceptor())
+        .withCallCredentials(credentials)
+        .withDeadlineAfter(options.remoteTimeout, TimeUnit.SECONDS);
+  }
+
   private ByteStreamBlockingStub bsBlockingStub() {
     return ByteStreamGrpc.newBlockingStub(channel)
         .withInterceptors(TracingMetadataUtils.attachMetadataFromContextInterceptor())
         .withCallCredentials(credentials)
         .withDeadlineAfter(options.remoteTimeout, TimeUnit.SECONDS);
+  }
+
+  /**
+   * Download a tree with the {@link Directory} given by digest as the root directory of the tree.
+   * This method first attempts to retrieve the {@link Tree} using the GetTree RPC. If this rpc is
+   * unimplemented on the server, this method falls back to the default implementation {@link
+   * AbstractRemoteActionCache#getTree(Digest)} provided by its parent class.
+   *
+   * @param rootDigest The digest of the root {@link Directory} of the tree
+   * @return A tree with the given directory as the root.
+   * @throws IOException in the case that retrieving the blobs required to reconstruct the tree
+   *     failed.
+   */
+  @Override
+  public Tree getTree(Digest rootDigest) throws IOException {
+    byte directoryBytes[];
+    Directory dir;
+    directoryBytes = downloadBlob(rootDigest);
+    dir = Directory.parseFrom(directoryBytes);
+    try {
+      return getTreeUsingRpc(dir, rootDigest);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Code.UNIMPLEMENTED) {
+        // Fallback to generic getTree if getTree RPC is unimplemented.
+        return getTree(dir);
+      }
+      throw e;
+    }
+  }
+
+  /** Get tree using GetTree gRPC call. */
+  private Tree getTreeUsingRpc(Directory dir, Digest rootDigest) throws IOException {
+    boolean gotFirstResponse = false;
+    String nextPageToken = "";
+    ArrayList<Directory> directories = new ArrayList<>();
+
+    while (!gotFirstResponse || !nextPageToken.isEmpty()) {
+      GetTreeRequest.Builder requestBuilder =
+          GetTreeRequest.newBuilder()
+              .setRootDigest(rootDigest)
+              .setInstanceName(options.remoteInstanceName);
+      if (!nextPageToken.isEmpty()) {
+        requestBuilder.setPageToken(nextPageToken);
+      }
+      GetTreeResponse response = casBlockingStub().getTree(requestBuilder.build());
+      directories.addAll(response.getDirectoriesList());
+
+      nextPageToken = response.getNextPageToken();
+      gotFirstResponse = true;
+    }
+    return Tree.newBuilder().setRoot(dir).addAllChildren(directories).build();
+  }
+
+  @Override
+  protected void downloadBlob(Digest digest, Path dest) throws IOException {
+    try (OutputStream out = Files.newOutputStream(dest)) {
+      readBlob(digest, out);
+    }
+  }
+
+  @Override
+  protected byte[] downloadBlob(Digest digest) throws IOException {
+    if (digest.getSizeBytes() == 0) {
+      return new byte[0];
+    }
+    ByteArrayOutputStream stream = new ByteArrayOutputStream((int) digest.getSizeBytes());
+    readBlob(digest, stream);
+    return stream.toByteArray();
   }
 
   @Override
