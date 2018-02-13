@@ -98,6 +98,7 @@ public class RemoteClient {
     return numFilesListed;
   }
 
+  // Recursively list directory files/subdirectories with digests given a Tree of the directory.
   private void listTree(Path path, Tree tree, int limit) throws IOException, InterruptedException {
     Map<Digest, Directory> childrenMap = new HashMap<>();
     for (Directory child : tree.getChildrenList()) {
@@ -163,7 +164,7 @@ public class RemoteClient {
 
     if (remoteClientOptions.downloadDirectoryDigest != null) {
       cache.downloadDirectory(
-          remoteClientOptions.downloadDirectoryPath, remoteClientOptions.downloadDirectoryDigest);
+          remoteClientOptions.downloadDirectoryDigest, remoteClientOptions.downloadDirectoryPath);
       return;
     }
 
