@@ -219,7 +219,7 @@ public class GrpcRemoteCacheTest {
             responseObserver.onCompleted();
           }
         });
-    client.downloadDirectory(dirDigest, execRoot.resolve("test"));
+    client.downloadDirectory(execRoot.resolve("test"), dirDigest);
     assertThat(Files.exists(execRoot.resolve("test"))).isTrue();
   }
 
@@ -260,7 +260,7 @@ public class GrpcRemoteCacheTest {
           }
         });
 
-    client.downloadDirectory(dirDigest, execRoot.resolve("test"));
+    client.downloadDirectory(execRoot.resolve("test"), dirDigest);
     assertThat(Files.exists(execRoot.resolve("test"))).isTrue();
     assertThat(Files.exists(execRoot.resolve("test/foo"))).isTrue();
     assertThat(Files.exists(execRoot.resolve("test/bar"))).isTrue();

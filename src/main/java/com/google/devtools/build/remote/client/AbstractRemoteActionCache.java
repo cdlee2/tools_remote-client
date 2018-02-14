@@ -84,17 +84,17 @@ public abstract class AbstractRemoteActionCache {
   /**
    * Download the full contents of a Directory to a local path given its digest.
    *
-   * @param directoryDigest The digest of the Directory to download.
    * @param downloadPath The path to download the directory contents to.
+   * @param directoryDigest The digest of the Directory to download.
    * @throws IOException
    */
-  public void downloadDirectory(Digest directoryDigest, Path downloadPath) throws IOException {
+  public void downloadDirectory(Path downloadPath, Digest directoryDigest) throws IOException {
     Tree tree = getTree(directoryDigest);
     Map<Digest, Directory> childrenMap = new HashMap<>();
     for (Directory child : tree.getChildrenList()) {
       childrenMap.put(digestUtil.compute(child), child);
     }
-    downloadDirectory(tree.getRoot(), childrenMap, downloadPath);
+    downloadDirectory(downloadPath, tree.getRoot(), childrenMap);
   }
 
   /**
@@ -106,13 +106,13 @@ public abstract class AbstractRemoteActionCache {
    *
    * @throws IOException in case of a cache miss or if the remote cache is unavailable.
    */
-  private void downloadDirectory(Directory dir, Map<Digest, Directory> childrenMap, Path path)
+  private void downloadDirectory(Path path, Directory dir, Map<Digest, Directory> childrenMap)
       throws IOException {
     // Ensure that the directory is created here even though the directory might be empty
     Files.createDirectories(path);
     for (FileNode child : dir.getFilesList()) {
       Path childPath = path.resolve(child.getName());
-      downloadFile(child.getDigest(), child.getIsExecutable(), null, childPath);
+      downloadFile(childPath, child.getDigest(), child.getIsExecutable(), null);
     }
     for (DirectoryNode child : dir.getDirectoriesList()) {
       Path childPath = path.resolve(child.getName());
@@ -128,7 +128,7 @@ public abstract class AbstractRemoteActionCache {
                 + childDigest
                 + "not found");
       }
-      downloadDirectory(childDir, childrenMap, childPath);
+      downloadDirectory(childPath, childDir, childrenMap);
     }
   }
 
@@ -149,7 +149,7 @@ public abstract class AbstractRemoteActionCache {
    * fetched from the digest.
    */
   protected void downloadFile(
-      Digest digest, boolean isExecutable, @Nullable ByteString content, Path path)
+      Path path, Digest digest, boolean isExecutable, @Nullable ByteString content)
       throws IOException {
     Files.createDirectories(path.getParent());
     if (digest.getSizeBytes() == 0) {

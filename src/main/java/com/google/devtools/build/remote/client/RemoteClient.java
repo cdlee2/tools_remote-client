@@ -164,7 +164,7 @@ public class RemoteClient {
 
     if (remoteClientOptions.downloadDirectoryDigest != null) {
       cache.downloadDirectory(
-          remoteClientOptions.downloadDirectoryDigest, remoteClientOptions.downloadDirectoryPath);
+          remoteClientOptions.downloadDirectoryPath, remoteClientOptions.downloadDirectoryDigest);
       return;
     }
 
