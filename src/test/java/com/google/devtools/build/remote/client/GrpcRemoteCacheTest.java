@@ -312,37 +312,4 @@ public class GrpcRemoteCacheTest {
     assertThat(tree.getRoot()).isEqualTo(fooMessage);
     assertThat(tree.getChildrenList()).containsExactly(quxMessage, barMessage);
   }
-
-  @Test
-  public void testGetTreeUnimplemented() throws Exception {
-    GrpcRemoteCache client = newClient();
-    Directory quxMessage = Directory.getDefaultInstance();
-    Directory barMessage =
-        Directory.newBuilder().addFiles(FileNode.newBuilder().setName("test")).build();
-    Digest quxDigest = DIGEST_UTIL.compute(quxMessage);
-    Digest barDigest = DIGEST_UTIL.compute(barMessage);
-    Directory fooMessage =
-        Directory.newBuilder()
-            .addDirectories(DirectoryNode.newBuilder().setDigest(quxDigest).setName("qux"))
-            .addDirectories(DirectoryNode.newBuilder().setDigest(barDigest).setName("bar"))
-            .build();
-    Digest fooDigest = DIGEST_UTIL.compute(fooMessage);
-    serviceRegistry.addService(
-        new FakeImmutableCacheByteStreamImpl(
-            ImmutableMap.of(
-                fooDigest, fooMessage.toByteString(),
-                quxDigest, quxMessage.toByteString(),
-                barDigest, barMessage.toByteString())));
-    serviceRegistry.addService(
-        new ContentAddressableStorageImplBase() {
-          @Override
-          public void getTree(
-              GetTreeRequest request, StreamObserver<GetTreeResponse> responseObserver) {
-            responseObserver.onError(Status.UNIMPLEMENTED.asRuntimeException());
-          }
-        });
-    Tree tree = client.getTree(fooDigest);
-    assertThat(tree.getRoot()).isEqualTo(fooMessage);
-    assertThat(tree.getChildrenList()).containsExactly(quxMessage, barMessage);
-  }
 }

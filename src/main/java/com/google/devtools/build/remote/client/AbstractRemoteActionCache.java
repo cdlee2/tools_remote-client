@@ -48,6 +48,7 @@ public abstract class AbstractRemoteActionCache {
 
   /**
    * Download a tree with the {@link Directory} given by digest as the root directory of the tree.
+   * This default implementation requires a round trip for every subdirectory.
    *
    * @param rootDigest The digest of the root {@link Directory} of the tree
    * @return A tree with the given directory as the root.
@@ -55,27 +56,18 @@ public abstract class AbstractRemoteActionCache {
    *     failed.
    */
   public Tree getTree(Digest rootDigest) throws IOException {
-    byte directoryBytes[];
-    Directory dir;
-    directoryBytes = downloadBlob(rootDigest);
-    dir = Directory.parseFrom(directoryBytes);
-    return getTree(dir);
-  }
-
-  // A default implementation for recursively downloading the tree associated with a directory.
-  // Note: This implementation requires a round trip for each directory in the directory tree.
-  protected Tree getTree(Directory rootDir) throws IOException {
+    Directory rootDir = Directory.parseFrom(downloadBlob(rootDigest));
     List<Directory> children = new ArrayList<>();
     addChildDirectories(rootDir, children);
     return Tree.newBuilder().setRoot(rootDir).addAllChildren(children).build();
   }
 
-  // Recursively add all child directories of the given directory to the given list of
-  // directories.
+  /**
+   * Recursively add all child directories of the given directory to the given list of directories.
+   */
   private void addChildDirectories(Directory dir, List<Directory> directories) throws IOException {
     for (DirectoryNode childNode : dir.getDirectoriesList()) {
-      byte[] childDirBytes = downloadBlob(childNode.getDigest());
-      Directory childDir = Directory.parseFrom(childDirBytes);
+      Directory childDir = Directory.parseFrom(downloadBlob(childNode.getDigest()));
       directories.add(childDir);
       addChildDirectories(childDir, directories);
     }
@@ -132,7 +124,7 @@ public abstract class AbstractRemoteActionCache {
     }
   }
 
-  // Sets owner executable permission depending on isExecutable.
+  /** Sets owner executable permission depending on isExecutable. */
   private void setExecutable(Path path, boolean isExecutable) throws IOException {
     Set<PosixFilePermission> originalPerms = Files.getPosixFilePermissions(path); // Immutable.
     Set<PosixFilePermission> perms = EnumSet.copyOf(originalPerms);

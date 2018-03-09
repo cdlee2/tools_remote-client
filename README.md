@@ -3,15 +3,17 @@ This tool is meant to provide various debugging functionality for users of remot
 execution in Bazel such as downloading blobs and directories by digest. Details on using remote
 caching and execution in Bazel can be found [here](https://docs.bazel.build/versions/master/remote-caching.html).
 
+## Installation
+
+This tool is built using Bazel:
+
+    $ bazel build //:remote_client
+
 ## Usage
 
 The command line options for configuring a connection to a remote cache (cache address,
 authentication, TLS, etc.) with this tool are identical to the options in Bazel. This tool currently
 supports downloading blobs, and recursively listing/downloading directories by digest.
-
-First build the tool using Bazel with
-
-    $ bazel build //:remote_client
 
 Example for downloading a blob with digest
 762670a6d50679e5495d3a489290bf2b3845172de3c048476668e91f6fc42b8e/18544 to file hello-world:
@@ -32,7 +34,7 @@ d1c2cad73bf385e1ebc7f7433781a9a5807d425de9426c11d770b5123e5c6a5b/82:
     examples/cpp/hello-lib.h [File content digest: fbc71c527a8d91d1b4414484811c20edc0369d0ccdfcfd562ebd01726141bf51/368]
     examples/cpp/hello-world.cc [File content digest: 6cd9f4d242f4441a375539146b0cdabb559c6184921aede45d5a0ed7b84d5253/747]
 
-For a full listing of configuration options and operations see `remote_client --help`.
+For a full listing of configuration options and operations, see `remote_client --help`.
 ## Developer Information
 
 ### Third-party Dependencies

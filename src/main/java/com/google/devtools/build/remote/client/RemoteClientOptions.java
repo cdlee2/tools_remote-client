@@ -48,16 +48,15 @@ public final class RemoteClientOptions {
     names = "--list_directory",
     converter = DigestConverter.class,
     description =
-        "A directory digest in the format hex_hash/size_bytes. The directory file contents "
-            + "will be listed recursively."
+        "A directory digest in the format hex_hash/size_bytes. The directory contents will be "
+            + "listed recursively."
   )
   public Digest listDirectory = null;
 
   @Parameter(
     names = "--list_limit",
     description =
-        "A directory digest in the format hex_hash/size_bytes. The directory file contents "
-            + "will be listed recursively."
+        "The maximum number of files in a directory to list."
   )
   public int listLimit = 100;
 
@@ -65,8 +64,8 @@ public final class RemoteClientOptions {
     names = "--download_directory_digest",
     converter = DigestConverter.class,
     description =
-        "A directory digest in the format hex_hash/size_bytes. The directory file contents "
-            + "will be downloaded recursively."
+        "A directory digest in the format hex_hash/size_bytes. The directory contents will be "
+            + "downloaded recursively."
   )
   public Digest downloadDirectoryDigest = null;
 

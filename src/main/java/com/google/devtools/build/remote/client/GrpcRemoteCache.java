@@ -28,7 +28,6 @@ import com.google.devtools.remoteexecution.v1test.Tree;
 import io.grpc.CallCredentials;
 import io.grpc.Channel;
 import io.grpc.Status;
-import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -84,9 +83,7 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
 
   /**
    * Download a tree with the {@link Directory} given by digest as the root directory of the tree.
-   * This method first attempts to retrieve the {@link Tree} using the GetTree RPC. If this rpc is
-   * unimplemented on the server, this method falls back to the default implementation {@link
-   * AbstractRemoteActionCache#getTree(Digest)} provided by its parent class.
+   * This method attempts to retrieve the {@link Tree} using the GetTree RPC.
    *
    * @param rootDigest The digest of the root {@link Directory} of the tree
    * @return A tree with the given directory as the root.
@@ -95,23 +92,7 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
    */
   @Override
   public Tree getTree(Digest rootDigest) throws IOException {
-    byte directoryBytes[];
-    Directory dir;
-    directoryBytes = downloadBlob(rootDigest);
-    dir = Directory.parseFrom(directoryBytes);
-    try {
-      return getTreeUsingRpc(dir, rootDigest);
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Code.UNIMPLEMENTED) {
-        // Fallback to generic getTree if getTree RPC is unimplemented.
-        return getTree(dir);
-      }
-      throw e;
-    }
-  }
-
-  /** Get tree using GetTree gRPC call. */
-  private Tree getTreeUsingRpc(Directory dir, Digest rootDigest) throws IOException {
+    Directory dir = Directory.parseFrom(downloadBlob(rootDigest));
     boolean gotFirstResponse = false;
     String nextPageToken = "";
     ArrayList<Directory> directories = new ArrayList<>();
