@@ -64,4 +64,8 @@ public class DigestUtil {
   public static Digest buildDigest(String hexHash, long size) {
     return Digest.newBuilder().setHash(hexHash).setSizeBytes(size).build();
   }
+
+  public String toString(Digest digest) {
+    return digest.getHash() + "/" + digest.getSizeBytes();
+  }
 }

@@ -18,8 +18,10 @@ import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.FileConverter;
 import com.beust.jcommander.converters.PathConverter;
 import com.google.devtools.remoteexecution.v1test.Digest;
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -29,54 +31,66 @@ public final class RemoteClientOptions {
   @Parameter(names = "--help", description = "This message.", help = true)
   public boolean help;
 
-  @Parameter(
-    names = "--digest",
-    converter = DigestConverter.class,
-    description = "A blob digest to download in the format hex_hash/size_bytes."
+  @Parameters(
+    commandDescription = "Recursively lists a Directory in remote cache.",
+    separators = "="
   )
-  public Digest digest = null;
+  public static class LsCommand {
+    @Parameter(
+      names = "--digest",
+      converter = DigestConverter.class,
+      description = "The digest of the Directory to list in hex_hash/size_bytes."
+    )
+    public Digest digest = null;
 
-  @Parameter(
-    names = "--output",
-    description =
-        "If specified, a path to download the blob into. "
-            + "Otherwise, contents will be printed to stdout."
-  )
-  public String output = null;
+    @Parameter(
+      names = "--limit",
+      description = "The maximum number of files in a directory to list."
+    )
+    public int limit = 100;
+  }
 
-  @Parameter(
-    names = "--list_directory",
-    converter = DigestConverter.class,
-    description =
-        "A directory digest in the format hex_hash/size_bytes. The directory contents will be "
-            + "listed recursively."
+  @Parameters(
+    commandDescription = "Recursively downloads a Directory from remote cache.",
+    separators = "="
   )
-  public Digest listDirectory = null;
+  public static class GetDirCommand {
+    @Parameter(
+      names = "--digest",
+      converter = DigestConverter.class,
+      description = "The digest of the Directory to download in hex_hash/size_bytes."
+    )
+    public Digest digest = null;
 
-  @Parameter(
-    names = "--list_limit",
-    description =
-        "The maximum number of files in a directory to list."
-  )
-  public int listLimit = 100;
+    @Parameter(
+      names = "--path",
+      converter = PathConverter.class,
+      description = "The local path to download the Directory contents into."
+    )
+    public Path path = Paths.get("");
+  }
 
-  @Parameter(
-    names = "--download_directory_digest",
-    converter = DigestConverter.class,
-    description =
-        "A directory digest in the format hex_hash/size_bytes. The directory contents will be "
-            + "downloaded recursively."
+  @Parameters(
+    commandDescription =
+        "Write contents of a blob from remote cache to stdout. If specified, "
+            + "the contents of the blob can be written to a specific file instead of stdout.",
+    separators = "="
   )
-  public Digest downloadDirectoryDigest = null;
+  public static class CatCommand {
+    @Parameter(
+      names = "--digest",
+      converter = DigestConverter.class,
+      description = "The digest in the format hex_hash/size_bytes of the blob to download."
+    )
+    public Digest digest = null;
 
-  @Parameter(
-    names = "--download_directory_path",
-    converter = PathConverter.class,
-    description =
-        "Specifies what directory to download the directory contents to. By default, the current "
-            + "path will be used."
-  )
-  public Path downloadDirectoryPath = Paths.get("");
+    @Parameter(
+      names = "--file",
+      converter = FileConverter.class,
+      description = "Specifies a file to write the blob contents to instead of stdout."
+    )
+    public File file = null;
+  }
 
   /** Converter for hex_hash/size_bytes string to a Digest object. */
   public static class DigestConverter implements IStringConverter<Digest> {

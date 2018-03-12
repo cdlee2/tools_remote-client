@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
@@ -93,25 +92,20 @@ public class GrpcRemoteCache extends AbstractRemoteActionCache {
   @Override
   public Tree getTree(Digest rootDigest) throws IOException {
     Directory dir = Directory.parseFrom(downloadBlob(rootDigest));
-    boolean gotFirstResponse = false;
-    String nextPageToken = "";
-    ArrayList<Directory> directories = new ArrayList<>();
-
-    while (!gotFirstResponse || !nextPageToken.isEmpty()) {
+    Tree.Builder result = Tree.newBuilder().setRoot(dir);
+    GetTreeResponse response = null;
+    while (response == null || !response.getNextPageToken().isEmpty()) {
       GetTreeRequest.Builder requestBuilder =
           GetTreeRequest.newBuilder()
               .setRootDigest(rootDigest)
               .setInstanceName(options.remoteInstanceName);
-      if (!nextPageToken.isEmpty()) {
-        requestBuilder.setPageToken(nextPageToken);
+      if (response != null) {
+        requestBuilder.setPageToken(response.getNextPageToken());
       }
-      GetTreeResponse response = casBlockingStub().getTree(requestBuilder.build());
-      directories.addAll(response.getDirectoriesList());
-
-      nextPageToken = response.getNextPageToken();
-      gotFirstResponse = true;
+      response = casBlockingStub().getTree(requestBuilder.build());
+      result.addAllChildren(response.getDirectoriesList());
     }
-    return Tree.newBuilder().setRoot(dir).addAllChildren(directories).build();
+    return result.build();
   }
 
   @Override

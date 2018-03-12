@@ -17,6 +17,9 @@ package com.google.devtools.build.remote.client;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.google.common.hash.Hashing;
+import com.google.devtools.build.remote.client.RemoteClientOptions.CatCommand;
+import com.google.devtools.build.remote.client.RemoteClientOptions.GetDirCommand;
+import com.google.devtools.build.remote.client.RemoteClientOptions.LsCommand;
 import com.google.devtools.remoteexecution.v1test.Digest;
 import com.google.devtools.remoteexecution.v1test.Directory;
 import com.google.devtools.remoteexecution.v1test.DirectoryNode;
@@ -24,7 +27,6 @@ import com.google.devtools.remoteexecution.v1test.FileNode;
 import com.google.devtools.remoteexecution.v1test.RequestMetadata;
 import com.google.devtools.remoteexecution.v1test.ToolDetails;
 import com.google.devtools.remoteexecution.v1test.Tree;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -46,18 +48,16 @@ public class RemoteClient {
 
   // Prints the details (path and digest) of a DirectoryNode.
   private void printDirectoryNodeDetails(DirectoryNode directoryNode, Path directoryPath) {
-    Digest digest = directoryNode.getDigest();
     System.out.printf(
-        "%s [Directory digest: %s/%d]\n",
-        directoryPath.toString(), digest.getHash(), digest.getSizeBytes());
+        "%s [Directory digest: %s]\n",
+        directoryPath.toString(), digestUtil.toString(directoryNode.getDigest()));
   }
 
   // Prints the details (path and content digest) of a FileNode.
   private void printFileNodeDetails(FileNode fileNode, Path filePath) {
-    Digest digest = fileNode.getDigest();
     System.out.printf(
-        "%s [File content digest: %s/%d]\n",
-        filePath.toString(), digest.getHash(), digest.getSizeBytes());
+        "%s [File content digest: %s]\n",
+        filePath.toString(), digestUtil.toString(fileNode.getDigest()));
   }
 
   // List the files in a directory assuming the directory is at the given path. Returns the number
@@ -111,12 +111,19 @@ public class RemoteClient {
     AuthAndTLSOptions authAndTlsOptions = new AuthAndTLSOptions();
     RemoteOptions remoteOptions = new RemoteOptions();
     RemoteClientOptions remoteClientOptions = new RemoteClientOptions();
+    LsCommand lsCommand = new LsCommand();
+    GetDirCommand getDirCommand = new GetDirCommand();
+    CatCommand catCommand = new CatCommand();
 
     JCommander optionsParser =
         JCommander.newBuilder()
+            .programName("remote_client")
             .addObject(authAndTlsOptions)
             .addObject(remoteOptions)
             .addObject(remoteClientOptions)
+            .addCommand("ls", lsCommand)
+            .addCommand("getdir", getDirCommand)
+            .addCommand("cat", catCommand)
             .build();
 
     try {
@@ -127,17 +134,15 @@ public class RemoteClient {
       System.exit(1);
     }
 
-    try {
-      validateClientOptions(remoteClientOptions);
-    } catch (IllegalArgumentException e) {
-      System.err.println(e.getLocalizedMessage());
-      optionsParser.usage();
-      System.exit(1);
-    }
-
     if (remoteClientOptions.help) {
       optionsParser.usage();
       return;
+    }
+
+    if (optionsParser.getParsedCommand() == null) {
+      System.err.println("No command specified.");
+      optionsParser.usage();
+      System.exit(1);
     }
 
     DigestUtil digestUtil = new DigestUtil(Hashing.sha256());
@@ -156,33 +161,31 @@ public class RemoteClient {
 
     RemoteClient client = new RemoteClient(cache);
 
-    if (remoteClientOptions.listDirectory != null) {
-      Tree tree = cache.getTree(remoteClientOptions.listDirectory);
-      client.listTree(Paths.get(""), tree, remoteClientOptions.listLimit);
+    if (optionsParser.getParsedCommand() == "ls") {
+      Tree tree = cache.getTree(lsCommand.digest);
+      client.listTree(Paths.get(""), tree, lsCommand.limit);
       return;
     }
 
-    if (remoteClientOptions.downloadDirectoryDigest != null) {
-      cache.downloadDirectory(
-          remoteClientOptions.downloadDirectoryPath, remoteClientOptions.downloadDirectoryDigest);
+    if (optionsParser.getParsedCommand() == "getdir") {
+      cache.downloadDirectory(getDirCommand.path, getDirCommand.digest);
       return;
     }
 
-    if (remoteClientOptions.digest != null) {
+    if (optionsParser.getParsedCommand() == "cat") {
       OutputStream output;
-      if (remoteClientOptions.output != null) {
-        File file = new File(remoteClientOptions.output);
-        output = new FileOutputStream(file);
+      if (catCommand.file != null) {
+        output = new FileOutputStream(catCommand.file);
 
-        if (!file.exists()) {
-          file.createNewFile();
+        if (!catCommand.file.exists()) {
+          catCommand.file.createNewFile();
         }
       } else {
         output = System.out;
       }
 
       try {
-        cache.downloadBlob(remoteClientOptions.digest, output);
+        cache.downloadBlob(catCommand.digest, output);
       } catch (CacheNotFoundException e) {
         System.err.println("Error: " + e);
       } finally {
@@ -190,25 +193,5 @@ public class RemoteClient {
       }
       return;
     }
-  }
-
-  private static void validateClientOptions(RemoteClientOptions options)
-      throws IllegalArgumentException {
-    int numOperations =
-        boolToInt(options.digest != null)
-            + boolToInt(options.listDirectory != null)
-            + boolToInt(options.downloadDirectoryDigest != null)
-            + boolToInt(options.help);
-    if (numOperations == 0) {
-      throw new IllegalArgumentException(
-          "An operation for the client to perform must be specified.");
-    } else if (numOperations > 1) {
-      throw new IllegalArgumentException(
-          "Only one operation can be specified to be performed by the client.");
-    }
-  }
-
-  private static int boolToInt(boolean bool) {
-    return bool ? 1 : 0;
   }
 }
