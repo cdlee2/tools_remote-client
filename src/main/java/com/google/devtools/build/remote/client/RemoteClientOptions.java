@@ -38,6 +38,7 @@ public final class RemoteClientOptions {
   public static class LsCommand {
     @Parameter(
       names = "--digest",
+      required = true,
       converter = DigestConverter.class,
       description = "The digest of the Directory to list in hex_hash/size_bytes."
     )
@@ -45,7 +46,27 @@ public final class RemoteClientOptions {
 
     @Parameter(
       names = "--limit",
-      description = "The maximum number of files in a directory to list."
+      description = "The maximum number of files in the Directory to list."
+    )
+    public int limit = 100;
+  }
+
+  @Parameters(
+      commandDescription = "Recursively lists an OutputDirectory in remote cache.",
+      separators = "="
+  )
+  public static class LsOutDirCommand {
+    @Parameter(
+        names = "--digest",
+        required = true,
+        converter = DigestConverter.class,
+        description = "The digest of the OutputDirectory to list in hex_hash/size_bytes."
+    )
+    public Digest digest = null;
+
+    @Parameter(
+        names = "--limit",
+        description = "The maximum number of files in the OutputDirectory to list."
     )
     public int limit = 100;
   }
@@ -57,6 +78,7 @@ public final class RemoteClientOptions {
   public static class GetDirCommand {
     @Parameter(
       names = "--digest",
+      required = true,
       converter = DigestConverter.class,
       description = "The digest of the Directory to download in hex_hash/size_bytes."
     )
@@ -71,6 +93,27 @@ public final class RemoteClientOptions {
   }
 
   @Parameters(
+      commandDescription = "Recursively downloads a Directory from remote cache.",
+      separators = "="
+  )
+  public static class GetOutDirCommand {
+    @Parameter(
+        names = "--digest",
+        required = true,
+        converter = DigestConverter.class,
+        description = "The digest of the OutputDirectory to download in hex_hash/size_bytes."
+    )
+    public Digest digest = null;
+
+    @Parameter(
+        names = "--path",
+        converter = PathConverter.class,
+        description = "The local path to download the OutputDirectory contents into."
+    )
+    public Path path = Paths.get("");
+  }
+
+  @Parameters(
     commandDescription =
         "Write contents of a blob from remote cache to stdout. If specified, "
             + "the contents of the blob can be written to a specific file instead of stdout.",
@@ -79,6 +122,7 @@ public final class RemoteClientOptions {
   public static class CatCommand {
     @Parameter(
       names = "--digest",
+      required = true,
       converter = DigestConverter.class,
       description = "The digest in the format hex_hash/size_bytes of the blob to download."
     )

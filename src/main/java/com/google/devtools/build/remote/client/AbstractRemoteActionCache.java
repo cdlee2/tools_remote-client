@@ -18,6 +18,7 @@ import com.google.devtools.remoteexecution.v1test.Digest;
 import com.google.devtools.remoteexecution.v1test.Directory;
 import com.google.devtools.remoteexecution.v1test.DirectoryNode;
 import com.google.devtools.remoteexecution.v1test.FileNode;
+import com.google.devtools.remoteexecution.v1test.OutputDirectory;
 import com.google.devtools.remoteexecution.v1test.Tree;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -122,6 +123,27 @@ public abstract class AbstractRemoteActionCache {
       }
       downloadDirectory(childPath, childDir, childrenMap);
     }
+  }
+
+  /**
+   * Download the full contents of a OutputDirectory to a local path.
+   *
+   * @param dir The OutputDirectory to download.
+   * @param path The path to download the directory to.
+   * @throws IOException
+   */
+  public void downloadOutputDirectory(OutputDirectory dir, Path path) throws IOException {
+    Tree tree;
+    try {
+      tree = Tree.parseFrom(downloadBlob(dir.getTreeDigest()));
+    } catch (IOException e) {
+      throw new IOException("Could not download tree for OutputDirectory.", e);
+    }
+    Map<Digest, Directory> childrenMap = new HashMap<>();
+    for (Directory child : tree.getChildrenList()) {
+      childrenMap.put(digestUtil.compute(child), child);
+    }
+    downloadDirectory(path, tree.getRoot(), childrenMap);
   }
 
   /** Sets owner executable permission depending on isExecutable. */
