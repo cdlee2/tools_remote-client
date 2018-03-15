@@ -93,7 +93,7 @@ public final class RemoteClientOptions {
   }
 
   @Parameters(
-      commandDescription = "Recursively downloads a Directory from remote cache.",
+      commandDescription = "Recursively downloads a OutputDirectory from remote cache.",
       separators = "="
   )
   public static class GetOutDirCommand {

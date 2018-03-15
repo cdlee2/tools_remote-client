@@ -19,6 +19,7 @@ import com.beust.jcommander.ParameterException;
 import com.google.common.hash.Hashing;
 import com.google.devtools.build.remote.client.RemoteClientOptions.CatCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetDirCommand;
+import com.google.devtools.build.remote.client.RemoteClientOptions.GetOutDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsOutDirCommand;
 import com.google.devtools.remoteexecution.v1test.Digest;
@@ -132,6 +133,7 @@ public class RemoteClient {
     LsCommand lsCommand = new LsCommand();
     LsOutDirCommand lsOutDirCommand = new LsOutDirCommand();
     GetDirCommand getDirCommand = new GetDirCommand();
+    GetOutDirCommand getOutDirCommand = new GetOutDirCommand();
     CatCommand catCommand = new CatCommand();
 
     JCommander optionsParser =
@@ -143,6 +145,7 @@ public class RemoteClient {
             .addCommand("ls", lsCommand)
             .addCommand("lsoutdir", lsOutDirCommand)
             .addCommand("getdir", getDirCommand)
+            .addCommand("getoutdir", getOutDirCommand)
             .addCommand("cat", catCommand)
             .build();
 
@@ -200,6 +203,16 @@ public class RemoteClient {
     if (optionsParser.getParsedCommand() == "getdir") {
       cache.downloadDirectory(getDirCommand.path, getDirCommand.digest);
       return;
+    }
+
+    if (optionsParser.getParsedCommand() == "getoutdir") {
+      OutputDirectory dir;
+      try {
+        dir = OutputDirectory.parseFrom(cache.downloadBlob(getOutDirCommand.digest));
+      } catch (IOException e) {
+        throw new IOException("Failed to download OutputDirectory.", e);
+      }
+      cache.downloadOutputDirectory(dir, getOutDirCommand.path);
     }
 
     if (optionsParser.getParsedCommand() == "cat") {
