@@ -85,7 +85,7 @@ public final class RemoteClientOptions {
     public Digest digest = null;
 
     @Parameter(
-      names = "--path",
+      names = { "--path", "-o" },
       converter = PathConverter.class,
       description = "The local path to download the Directory contents into."
     )
@@ -106,7 +106,7 @@ public final class RemoteClientOptions {
     public Digest digest = null;
 
     @Parameter(
-      names = "--path",
+      names = { "--path", "-o" },
       converter = PathConverter.class,
       description = "The local path to download the OutputDirectory contents into."
     )
@@ -129,7 +129,7 @@ public final class RemoteClientOptions {
     public Digest digest = null;
 
     @Parameter(
-      names = "--file",
+      names = { "--file", "-o" },
       converter = FileConverter.class,
       description = "Specifies a file to write the blob contents to instead of stdout."
     )
