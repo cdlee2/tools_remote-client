@@ -52,21 +52,21 @@ public final class RemoteClientOptions {
   }
 
   @Parameters(
-      commandDescription = "Recursively lists an OutputDirectory in remote cache.",
-      separators = "="
+    commandDescription = "Recursively lists an OutputDirectory in remote cache.",
+    separators = "="
   )
   public static class LsOutDirCommand {
     @Parameter(
-        names = "--digest",
-        required = true,
-        converter = DigestConverter.class,
-        description = "The digest of the OutputDirectory to list in hex_hash/size_bytes."
+      names = "--digest",
+      required = true,
+      converter = DigestConverter.class,
+      description = "The digest of the OutputDirectory to list in hex_hash/size_bytes."
     )
     public Digest digest = null;
 
     @Parameter(
-        names = "--limit",
-        description = "The maximum number of files in the OutputDirectory to list."
+      names = "--limit",
+      description = "The maximum number of files in the OutputDirectory to list."
     )
     public int limit = 100;
   }
@@ -93,22 +93,22 @@ public final class RemoteClientOptions {
   }
 
   @Parameters(
-      commandDescription = "Recursively downloads a OutputDirectory from remote cache.",
-      separators = "="
+    commandDescription = "Recursively downloads a OutputDirectory from remote cache.",
+    separators = "="
   )
   public static class GetOutDirCommand {
     @Parameter(
-        names = "--digest",
-        required = true,
-        converter = DigestConverter.class,
-        description = "The digest of the OutputDirectory to download in hex_hash/size_bytes."
+      names = "--digest",
+      required = true,
+      converter = DigestConverter.class,
+      description = "The digest of the OutputDirectory to download in hex_hash/size_bytes."
     )
     public Digest digest = null;
 
     @Parameter(
-        names = "--path",
-        converter = PathConverter.class,
-        description = "The local path to download the OutputDirectory contents into."
+      names = "--path",
+      converter = PathConverter.class,
+      description = "The local path to download the OutputDirectory contents into."
     )
     public Path path = Paths.get("");
   }

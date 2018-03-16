@@ -48,7 +48,6 @@ import io.grpc.ClientInterceptors;
 import io.grpc.Context;
 import io.grpc.MethodDescriptor;
 import io.grpc.Server;
-import io.grpc.Status;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -330,18 +329,20 @@ public class GrpcRemoteCacheTest {
                             .setIsExecutable(true)))
             .build();
     Digest barTreeDigest = DIGEST_UTIL.compute(barTreeMessage);
-    OutputDirectory barDirMessage = OutputDirectory.newBuilder()
-        .setPath("test/bar")
-        .setTreeDigest(barTreeDigest)
-        .build();
+    OutputDirectory barDirMessage =
+        OutputDirectory.newBuilder().setPath("test/bar").setTreeDigest(barTreeDigest).build();
     Digest barDirDigest = DIGEST_UTIL.compute(barDirMessage);
     serviceRegistry.addService(
         new FakeImmutableCacheByteStreamImpl(
             ImmutableMap.of(
-                fooDigest, "foo-contents",
-                barTreeDigest, barTreeMessage.toByteString(),
-                quxDigest, "qux-contents",
-                barDirDigest, barDirMessage.toByteString())));
+                fooDigest,
+                "foo-contents",
+                barTreeDigest,
+                barTreeMessage.toByteString(),
+                quxDigest,
+                "qux-contents",
+                barDirDigest,
+                barDirMessage.toByteString())));
 
     client.downloadOutputDirectory(barDirMessage, execRoot.resolve("test/bar"));
 
@@ -358,10 +359,8 @@ public class GrpcRemoteCacheTest {
 
     Tree barTreeMessage = Tree.newBuilder().setRoot(Directory.newBuilder()).build();
     Digest barTreeDigest = DIGEST_UTIL.compute(barTreeMessage);
-    OutputDirectory barDirMessage = OutputDirectory.newBuilder()
-        .setPath("test/bar")
-        .setTreeDigest(barTreeDigest)
-        .build();
+    OutputDirectory barDirMessage =
+        OutputDirectory.newBuilder().setPath("test/bar").setTreeDigest(barTreeDigest).build();
     Digest barDirDigest = DIGEST_UTIL.compute(barDirMessage);
     serviceRegistry.addService(
         new FakeImmutableCacheByteStreamImpl(
@@ -389,27 +388,26 @@ public class GrpcRemoteCacheTest {
         Tree.newBuilder()
             .setRoot(
                 Directory.newBuilder()
-                    .addFiles(
-                        FileNode.newBuilder()
-                            .setName("qux")
-                            .setDigest(quxDigest))
+                    .addFiles(FileNode.newBuilder().setName("qux").setDigest(quxDigest))
                     .addDirectories(
                         DirectoryNode.newBuilder().setName("wobble").setDigest(wobbleDigest)))
             .addChildren(wobbleDirMessage)
             .build();
     Digest barTreeDigest = DIGEST_UTIL.compute(barTreeMessage);
-    OutputDirectory barDirMessage = OutputDirectory.newBuilder()
-        .setPath("test/bar")
-        .setTreeDigest(barTreeDigest)
-        .build();
+    OutputDirectory barDirMessage =
+        OutputDirectory.newBuilder().setPath("test/bar").setTreeDigest(barTreeDigest).build();
     Digest barDirDigest = DIGEST_UTIL.compute(barDirMessage);
     serviceRegistry.addService(
         new FakeImmutableCacheByteStreamImpl(
             ImmutableMap.of(
-                fooDigest, "foo-contents",
-                barTreeDigest, barTreeMessage.toByteString(),
-                quxDigest, "qux-contents",
-                barDirDigest, barDirMessage.toByteString())));
+                fooDigest,
+                "foo-contents",
+                barTreeDigest,
+                barTreeMessage.toByteString(),
+                quxDigest,
+                "qux-contents",
+                barDirDigest,
+                barDirMessage.toByteString())));
 
     client.downloadOutputDirectory(barDirMessage, execRoot.resolve("test/bar"));
 
