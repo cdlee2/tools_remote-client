@@ -136,6 +136,26 @@ public final class RemoteClientOptions {
     public File file = null;
   }
 
+  @Parameters(
+      commandDescription = "Parse and display an Action proto.",
+      separators = "="
+  )
+  public static class ShowActionCommand {
+    @Parameter(
+        names = "--textproto",
+        required = true,
+        converter = FileConverter.class,
+        description = "Path to a Action proto stored in protobuf text format."
+    )
+    public File file = null;
+
+    @Parameter(
+        names = "--limit",
+        description = "The maximum number of input/output files to list."
+    )
+    public int limit = 100;
+  }
+
   /** Converter for hex_hash/size_bytes string to a Digest object. */
   public static class DigestConverter implements IStringConverter<Digest> {
     @Override

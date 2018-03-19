@@ -16,12 +16,20 @@ package com.google.devtools.build.remote.client;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Joiner;
+import com.google.common.escape.CharEscaperBuilder;
+import com.google.common.escape.Escaper;
 import com.google.common.hash.Hashing;
 import com.google.devtools.build.remote.client.RemoteClientOptions.CatCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetOutDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsOutDirCommand;
+import com.google.devtools.build.remote.client.RemoteClientOptions.ShowActionCommand;
+import com.google.devtools.remoteexecution.v1test.Action;
+import com.google.devtools.remoteexecution.v1test.Command;
+import com.google.devtools.remoteexecution.v1test.Command.EnvironmentVariable;
 import com.google.devtools.remoteexecution.v1test.Digest;
 import com.google.devtools.remoteexecution.v1test.Directory;
 import com.google.devtools.remoteexecution.v1test.DirectoryNode;
@@ -30,19 +38,34 @@ import com.google.devtools.remoteexecution.v1test.OutputDirectory;
 import com.google.devtools.remoteexecution.v1test.RequestMetadata;
 import com.google.devtools.remoteexecution.v1test.ToolDetails;
 import com.google.devtools.remoteexecution.v1test.Tree;
+import com.google.protobuf.TextFormat;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** A standalone client for interacting with remote caches in Bazel. */
 public class RemoteClient {
 
-  AbstractRemoteActionCache cache;
-  DigestUtil digestUtil;
+  private final AbstractRemoteActionCache cache;
+  private final DigestUtil digestUtil;
+
+  private static final Joiner SPACE_JOINER = Joiner.on(' ');
+  private static final Escaper STRONGQUOTE_ESCAPER =
+      new CharEscaperBuilder().addEscape('\'', "'\\''").toEscaper();
+  private static final CharMatcher SAFECHAR_MATCHER =
+      CharMatcher.anyOf("@%-_+:,./")
+          .or(CharMatcher.inRange('0', '9')) // We can't use CharMatcher.javaLetterOrDigit(),
+          .or(CharMatcher.inRange('a', 'z')) // that would also accept non-ASCII digits and
+          .or(CharMatcher.inRange('A', 'Z')) // letters.
+          .precomputed();
 
   private RemoteClient(AbstractRemoteActionCache cache) {
     this.cache = cache;
@@ -118,12 +141,76 @@ public class RemoteClient {
   }
 
   // Recursively list directory files/subdirectories with digests given a Tree of the directory.
-  private void listTree(Path path, Tree tree, int limit) throws IOException, InterruptedException {
+  private void listTree(Path path, Tree tree, int limit) throws IOException {
     Map<Digest, Directory> childrenMap = new HashMap<>();
     for (Directory child : tree.getChildrenList()) {
       childrenMap.put(digestUtil.compute(child), child);
     }
     listDirectory(path, tree.getRoot(), childrenMap, limit);
+  }
+
+  private static String escapeBash(String arg) {
+    final String s = arg.toString();
+    if (s.isEmpty()) {
+      // Empty string is a special case: needs to be quoted to ensure that it
+      // gets treated as a separate argument.
+      return "''";
+    } else {
+      return SAFECHAR_MATCHER.matchesAllOf(s)
+          ? s
+          : "'" + STRONGQUOTE_ESCAPER.escape(s) + "'";
+    }
+  }
+
+  private void printCommand(Command command) {
+    List<String> escapedCommand = new ArrayList<>();
+
+    for (String arg : command.getArgumentsList()) {
+      escapedCommand.add(escapeBash(arg));
+    }
+
+    for (EnvironmentVariable var : command.getEnvironmentVariablesList()) {
+      System.out.println(String.format("%s=%s \\",
+          escapeBash(var.getName()),
+          escapeBash(var.getValue())));
+    }
+    System.out.print("  ");
+    System.out.println(SPACE_JOINER.join(escapedCommand));
+  }
+
+  private static void printList(List<String> list, int limit) {
+    if (list.isEmpty()) {
+      System.out.println("(none)");
+      return;
+    }
+    list.stream().limit(limit).forEach(name -> System.out.println(name));
+    if (list.size() > limit) {
+      System.out.println(" ... (too many to list, some omitted)");
+    }
+  }
+
+  private void printAction(Action action, int limit) throws IOException {
+    Command command = null;
+    try {
+      command = Command.parseFrom(cache.downloadBlob(action.getCommandDigest()));
+    } catch (IOException e) {
+      System.err.println("Could not retrieve Command from CAS:");
+      System.err.println(e.getLocalizedMessage());
+    }
+    if (command != null) {
+      System.out.println("Command:");
+      printCommand(command);
+    }
+
+    System.out.println("\nInput files:");
+    Tree tree = cache.getTree(action.getInputRootDigest());
+    listTree(Paths.get(""), tree, limit);
+
+    System.out.println("\nOutput files:");
+    printList(action.getOutputFilesList(), limit);
+
+    System.out.println("\nOutput directories:");
+    printList(action.getOutputDirectoriesList(), limit);
   }
 
   public static void main(String[] args) throws Exception {
@@ -135,6 +222,7 @@ public class RemoteClient {
     GetDirCommand getDirCommand = new GetDirCommand();
     GetOutDirCommand getOutDirCommand = new GetOutDirCommand();
     CatCommand catCommand = new CatCommand();
+    ShowActionCommand showActionCommand = new ShowActionCommand();
 
     JCommander optionsParser =
         JCommander.newBuilder()
@@ -147,6 +235,7 @@ public class RemoteClient {
             .addCommand("getdir", getDirCommand)
             .addCommand("getoutdir", getOutDirCommand)
             .addCommand("cat", catCommand)
+            .addCommand("show_action", showActionCommand)
             .build();
 
     try {
@@ -168,6 +257,7 @@ public class RemoteClient {
       System.exit(1);
     }
 
+    // All commands after this require a working cache.
     DigestUtil digestUtil = new DigestUtil(Hashing.sha256());
     AbstractRemoteActionCache cache;
 
@@ -179,7 +269,8 @@ public class RemoteClient {
               .build();
       TracingMetadataUtils.contextWithMetadata(metadata).attach();
     } else {
-      throw new UnsupportedOperationException("Only gRPC remote cache supported currently.");
+      throw new UnsupportedOperationException(
+          "Only gRPC remote cache supported currently (cache not configured in options).");
     }
 
     RemoteClient client = new RemoteClient(cache);
@@ -234,6 +325,14 @@ public class RemoteClient {
       } finally {
         output.close();
       }
+      return;
+    }
+
+    if (optionsParser.getParsedCommand() == "show_action") {
+      Action.Builder builder = Action.newBuilder();
+      FileInputStream fin = new FileInputStream(showActionCommand.file);
+      TextFormat.getParser().merge(new InputStreamReader(fin), builder);
+      client.printAction(builder.build(), showActionCommand.limit);
       return;
     }
   }
