@@ -149,6 +149,9 @@ public class RemoteClient {
     listDirectory(path, tree.getRoot(), childrenMap, limit);
   }
 
+  // Escape an argument so that it can passed as a single argument in bash command line. Unless the
+  // argument contains no special characters, it will be wrapped in single quotes to escape special
+  // behaviour.
   private static String escapeBash(String arg) {
     final String s = arg.toString();
     if (s.isEmpty()) {
@@ -211,6 +214,13 @@ public class RemoteClient {
 
     System.out.println("\nOutput directories:");
     printList(action.getOutputDirectoriesList(), limit);
+
+    System.out.println("\nPlatform:");
+    if (action.getPlatform() != null && !action.getPlatform().getPropertiesList().isEmpty()) {
+      System.out.println(action.getPlatform().toString());
+    } else {
+      System.out.println("(none)");
+    }
   }
 
   public static void main(String[] args) throws Exception {
