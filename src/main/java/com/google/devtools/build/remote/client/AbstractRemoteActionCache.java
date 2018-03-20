@@ -64,7 +64,11 @@ public abstract class AbstractRemoteActionCache {
       throw new IOException("Failed to obtain Directory from digest.", e);
     }
     List<Directory> children = new ArrayList<>();
-    addChildDirectories(rootDir, children);
+    try {
+      addChildDirectories(rootDir, children);
+    } catch (IOException e) {
+      throw new IOException("Failed to obtain subdirectory Directory proto.", e);
+    }
     return Tree.newBuilder().setRoot(rootDir).addAllChildren(children).build();
   }
 
@@ -74,11 +78,7 @@ public abstract class AbstractRemoteActionCache {
   private void addChildDirectories(Directory dir, List<Directory> directories) throws IOException {
     for (DirectoryNode childNode : dir.getDirectoriesList()) {
       Directory childDir;
-      try {
-        childDir = Directory.parseFrom(downloadBlob(childNode.getDigest()));
-      } catch (IOException e) {
-        throw new IOException("Failed to download subdirectory Directory proto.", e);
-      }
+      childDir = Directory.parseFrom(downloadBlob(childNode.getDigest()));
       directories.add(childDir);
       addChildDirectories(childDir, directories);
     }
@@ -151,7 +151,7 @@ public abstract class AbstractRemoteActionCache {
     try {
       tree = Tree.parseFrom(downloadBlob(dir.getTreeDigest()));
     } catch (IOException e) {
-      throw new IOException("Could not download tree for OutputDirectory.", e);
+      throw new IOException("Could not obtain tree for OutputDirectory.", e);
     }
     Map<Digest, Directory> childrenMap = new HashMap<>();
     for (Directory child : tree.getChildrenList()) {

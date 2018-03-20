@@ -107,7 +107,7 @@ public class RemoteClient {
     try {
       tree = Tree.parseFrom(cache.downloadBlob(dir.getTreeDigest()));
     } catch (IOException e) {
-      throw new IOException("Failed to download Tree for OutputDirectory.", e);
+      throw new IOException("Failed to obtain Tree for OutputDirectory.", e);
     }
     Map<Digest, Directory> childrenMap = new HashMap<>();
     for (Directory child : tree.getChildrenList()) {
@@ -195,7 +195,7 @@ public class RemoteClient {
       try {
         dir = OutputDirectory.parseFrom(cache.downloadBlob(lsOutDirCommand.digest));
       } catch (IOException e) {
-        throw new IOException("Failed to download OutputDirectory.", e);
+        throw new IOException("Failed to obtain OutputDirectory.", e);
       }
       client.listOutputDirectory(dir, lsOutDirCommand.limit);
     }
@@ -210,7 +210,7 @@ public class RemoteClient {
       try {
         dir = OutputDirectory.parseFrom(cache.downloadBlob(getOutDirCommand.digest));
       } catch (IOException e) {
-        throw new IOException("Failed to download OutputDirectory.", e);
+        throw new IOException("Failed to obtain OutputDirectory.", e);
       }
       cache.downloadOutputDirectory(dir, getOutDirCommand.path);
     }
