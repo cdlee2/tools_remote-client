@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.remote.client;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.google.common.base.CharMatcher;
@@ -27,7 +29,9 @@ import com.google.devtools.build.remote.client.RemoteClientOptions.GetOutDirComm
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsOutDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.ShowActionCommand;
+import com.google.devtools.build.remote.client.RemoteClientOptions.ShowActionResultCommand;
 import com.google.devtools.remoteexecution.v1test.Action;
+import com.google.devtools.remoteexecution.v1test.ActionResult;
 import com.google.devtools.remoteexecution.v1test.Command;
 import com.google.devtools.remoteexecution.v1test.Command.EnvironmentVariable;
 import com.google.devtools.remoteexecution.v1test.Digest;
@@ -35,6 +39,7 @@ import com.google.devtools.remoteexecution.v1test.Directory;
 import com.google.devtools.remoteexecution.v1test.DirectoryNode;
 import com.google.devtools.remoteexecution.v1test.FileNode;
 import com.google.devtools.remoteexecution.v1test.OutputDirectory;
+import com.google.devtools.remoteexecution.v1test.OutputFile;
 import com.google.devtools.remoteexecution.v1test.RequestMetadata;
 import com.google.devtools.remoteexecution.v1test.ToolDetails;
 import com.google.devtools.remoteexecution.v1test.Tree;
@@ -173,9 +178,7 @@ public class RemoteClient {
     }
 
     for (EnvironmentVariable var : command.getEnvironmentVariablesList()) {
-      System.out.println(String.format("%s=%s \\",
-          escapeBash(var.getName()),
-          escapeBash(var.getValue())));
+      System.out.printf("%s=%s\n", escapeBash(var.getName()), escapeBash(var.getValue()));
     }
     System.out.print("  ");
     System.out.println(SPACE_JOINER.join(escapedCommand));
@@ -201,11 +204,13 @@ public class RemoteClient {
       System.err.println(e.getLocalizedMessage());
     }
     if (command != null) {
-      System.out.println("Command:");
+      System.out.printf("Command [digest %s]:\n", digestUtil.toString(action.getCommandDigest()));
       printCommand(command);
     }
 
-    System.out.println("\nInput files:");
+    System.out.printf(
+        "\nInput files [root Directory digest %s]:\n",
+        digestUtil.toString(action.getCommandDigest()));
     Tree tree = cache.getTree(action.getInputRootDigest());
     listTree(Paths.get(""), tree, limit);
 
@@ -223,6 +228,56 @@ public class RemoteClient {
     }
   }
 
+  private void printOutputFile(OutputFile file, boolean printRawContents) {
+    String contentString;
+    if (file.hasDigest()) {
+      contentString = "Content digest: " + digestUtil.toString(file.getDigest());
+    } else if (printRawContents) {
+      contentString = String.format(
+      "Raw contents: '%s', size: %d", file.getContent().toStringUtf8(), file.getContent().size());
+    } else {
+      contentString = "raw contents (not printed)";
+    }
+    System.out.printf(
+        "%s [%s, executable: %b]\n", file.getPath(), contentString, file.getIsExecutable());
+  }
+
+
+  private void printActionResult(ActionResult result, int limit) throws IOException {
+    System.out.println("Output files:");
+    result.getOutputFilesList().stream().limit(limit).forEach(name -> printOutputFile(name, false));
+    if (result.getOutputFilesList().size() > limit) {
+      System.out.println(" ... (too many to list, some omitted)");
+    }
+
+    System.out.println("\nOutput directories:");
+    result.getOutputDirectoriesList().stream().forEach(dir -> {
+      try {
+        listOutputDirectory(dir, limit);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
+
+    System.out.println(String.format("\nExit code: %d", result.getExitCode()));
+
+    System.out.println("\nStderr buffer:");
+    if (result.hasStderrDigest()) {
+      byte[] stderr = cache.downloadBlob(result.getStderrDigest());
+      System.out.println(new String(stderr, UTF_8));
+    } else {
+      System.out.println(result.getStdoutRaw().toStringUtf8());
+    }
+
+    System.out.println("\nStdout buffer:");
+    if (result.hasStdoutDigest()) {
+      byte[] stderr = cache.downloadBlob(result.getStdoutDigest());
+      System.out.println(new String(stderr, UTF_8));
+    } else {
+      System.out.println(result.getStdoutRaw().toStringUtf8());
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     AuthAndTLSOptions authAndTlsOptions = new AuthAndTLSOptions();
     RemoteOptions remoteOptions = new RemoteOptions();
@@ -233,6 +288,7 @@ public class RemoteClient {
     GetOutDirCommand getOutDirCommand = new GetOutDirCommand();
     CatCommand catCommand = new CatCommand();
     ShowActionCommand showActionCommand = new ShowActionCommand();
+    ShowActionResultCommand showActionResultCommand = new ShowActionResultCommand();
 
     JCommander optionsParser =
         JCommander.newBuilder()
@@ -246,6 +302,7 @@ public class RemoteClient {
             .addCommand("getoutdir", getOutDirCommand)
             .addCommand("cat", catCommand)
             .addCommand("show_action", showActionCommand)
+            .addCommand("show_action_result", showActionResultCommand)
             .build();
 
     try {
@@ -343,6 +400,14 @@ public class RemoteClient {
       FileInputStream fin = new FileInputStream(showActionCommand.file);
       TextFormat.getParser().merge(new InputStreamReader(fin), builder);
       client.printAction(builder.build(), showActionCommand.limit);
+      return;
+    }
+
+    if (optionsParser.getParsedCommand() == "show_action_result") {
+      ActionResult.Builder builder = ActionResult.newBuilder();
+      FileInputStream fin = new FileInputStream(showActionResultCommand.file);
+      TextFormat.getParser().merge(new InputStreamReader(fin), builder);
+      client.printActionResult(builder.build(), showActionResultCommand.limit);
       return;
     }
   }
