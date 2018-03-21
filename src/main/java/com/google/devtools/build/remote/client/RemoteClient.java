@@ -154,6 +154,10 @@ public class RemoteClient {
     listDirectory(path, tree.getRoot(), childrenMap, limit);
   }
 
+  private static int getNumFiles(Tree tree) {
+    return tree.getChildrenList().stream().mapToInt(dir -> dir.getFilesCount()).sum();
+  }
+
   // Escape an argument so that it can passed as a single argument in bash command line. Unless the
   // argument contains no special characters, it will be wrapped in single quotes to escape special
   // behaviour.
@@ -205,10 +209,10 @@ public class RemoteClient {
     System.out.printf("Command [digest: %s]:\n", digestUtil.toString(action.getCommandDigest()));
     printCommand(command);
 
-    System.out.printf(
-        "\nInput files [root Directory digest: %s]:\n",
-        digestUtil.toString(action.getCommandDigest()));
     Tree tree = cache.getTree(action.getInputRootDigest());
+    System.out.printf(
+        "\nInput files [total: %d, root Directory digest: %s]:\n",
+        getNumFiles(tree), digestUtil.toString(action.getCommandDigest()));
     listTree(Paths.get(""), tree, limit);
 
     System.out.println("\nOutput files:");
@@ -218,7 +222,7 @@ public class RemoteClient {
     printList(action.getOutputDirectoriesList(), limit);
 
     System.out.println("\nPlatform:");
-    if (action.getPlatform() != null && !action.getPlatform().getPropertiesList().isEmpty()) {
+    if (action.hasPlatform() && !action.getPlatform().getPropertiesList().isEmpty()) {
       System.out.println(action.getPlatform().toString());
     } else {
       System.out.println("(none)");
@@ -233,7 +237,7 @@ public class RemoteClient {
     } else if (showRawOutputs) {
       contentString =
           String.format(
-              "Raw contents: '%s', size: %d",
+              "Raw contents: '%s', size (bytes): %d",
               file.getContent().toStringUtf8(), file.getContent().size());
     } else {
       contentString = "Raw contents (not printed)";
@@ -253,20 +257,18 @@ public class RemoteClient {
         .forEach(name -> printOutputFile(name, showRawOutputs));
     if (result.getOutputFilesList().size() > limit) {
       System.out.println(" ... (too many to list, some omitted)");
+    } else if (result.getOutputFilesList().isEmpty()) {
+      System.out.println("(none)");
     }
 
     System.out.println("\nOutput directories:");
-    result
-        .getOutputDirectoriesList()
-        .stream()
-        .forEach(
-            dir -> {
-              try {
-                listOutputDirectory(dir, limit);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+    if (!result.getOutputDirectoriesList().isEmpty()) {
+      for (OutputDirectory dir : result.getOutputDirectoriesList()) {
+        listOutputDirectory(dir, limit);
+      }
+    } else {
+      System.out.println("(none)");
+    }
 
     System.out.println(String.format("\nExit code: %d", result.getExitCode()));
 
