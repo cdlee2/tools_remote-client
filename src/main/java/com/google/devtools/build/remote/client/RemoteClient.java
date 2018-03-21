@@ -164,13 +164,12 @@ public class RemoteClient {
       // gets treated as a separate argument.
       return "''";
     } else {
-      return SAFECHAR_MATCHER.matchesAllOf(s)
-          ? s
-          : "'" + STRONGQUOTE_ESCAPER.escape(s) + "'";
+      return SAFECHAR_MATCHER.matchesAllOf(s) ? s : "'" + STRONGQUOTE_ESCAPER.escape(s) + "'";
     }
   }
 
-  private void printCommand(Command command) {
+  // Outputs a bash executable line that corresponds to executing the given command.
+  private static void printCommand(Command command) {
     List<String> escapedCommand = new ArrayList<>();
 
     for (String arg : command.getArgumentsList()) {
@@ -178,7 +177,7 @@ public class RemoteClient {
     }
 
     for (EnvironmentVariable var : command.getEnvironmentVariablesList()) {
-      System.out.printf("%s=%s\n", escapeBash(var.getName()), escapeBash(var.getValue()));
+      System.out.printf("%s=%s \\\n", escapeBash(var.getName()), escapeBash(var.getValue()));
     }
     System.out.print("  ");
     System.out.println(SPACE_JOINER.join(escapedCommand));
@@ -195,21 +194,19 @@ public class RemoteClient {
     }
   }
 
+  // Output for print action command.
   private void printAction(Action action, int limit) throws IOException {
-    Command command = null;
+    Command command;
     try {
       command = Command.parseFrom(cache.downloadBlob(action.getCommandDigest()));
     } catch (IOException e) {
-      System.err.println("Could not retrieve Command from CAS:");
-      System.err.println(e.getLocalizedMessage());
+      throw new IOException("Could not obtain Command from digest.", e);
     }
-    if (command != null) {
-      System.out.printf("Command [digest %s]:\n", digestUtil.toString(action.getCommandDigest()));
-      printCommand(command);
-    }
+    System.out.printf("Command [digest: %s]:\n", digestUtil.toString(action.getCommandDigest()));
+    printCommand(command);
 
     System.out.printf(
-        "\nInput files [root Directory digest %s]:\n",
+        "\nInput files [root Directory digest: %s]:\n",
         digestUtil.toString(action.getCommandDigest()));
     Tree tree = cache.getTree(action.getInputRootDigest());
     listTree(Paths.get(""), tree, limit);
@@ -228,36 +225,48 @@ public class RemoteClient {
     }
   }
 
-  private void printOutputFile(OutputFile file, boolean printRawContents) {
+  // Display output file (either digest or raw bytes).
+  private void printOutputFile(OutputFile file, boolean showRawOutputs) {
     String contentString;
     if (file.hasDigest()) {
       contentString = "Content digest: " + digestUtil.toString(file.getDigest());
-    } else if (printRawContents) {
-      contentString = String.format(
-      "Raw contents: '%s', size: %d", file.getContent().toStringUtf8(), file.getContent().size());
+    } else if (showRawOutputs) {
+      contentString =
+          String.format(
+              "Raw contents: '%s', size: %d",
+              file.getContent().toStringUtf8(), file.getContent().size());
     } else {
-      contentString = "raw contents (not printed)";
+      contentString = "Raw contents (not printed)";
     }
     System.out.printf(
         "%s [%s, executable: %b]\n", file.getPath(), contentString, file.getIsExecutable());
   }
 
-
-  private void printActionResult(ActionResult result, int limit) throws IOException {
+  // Output for print action result command.
+  private void printActionResult(ActionResult result, int limit, boolean showRawOutputs)
+      throws IOException {
     System.out.println("Output files:");
-    result.getOutputFilesList().stream().limit(limit).forEach(name -> printOutputFile(name, false));
+    result
+        .getOutputFilesList()
+        .stream()
+        .limit(limit)
+        .forEach(name -> printOutputFile(name, showRawOutputs));
     if (result.getOutputFilesList().size() > limit) {
       System.out.println(" ... (too many to list, some omitted)");
     }
 
     System.out.println("\nOutput directories:");
-    result.getOutputDirectoriesList().stream().forEach(dir -> {
-      try {
-        listOutputDirectory(dir, limit);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    });
+    result
+        .getOutputDirectoriesList()
+        .stream()
+        .forEach(
+            dir -> {
+              try {
+                listOutputDirectory(dir, limit);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            });
 
     System.out.println(String.format("\nExit code: %d", result.getExitCode()));
 
@@ -266,13 +275,13 @@ public class RemoteClient {
       byte[] stderr = cache.downloadBlob(result.getStderrDigest());
       System.out.println(new String(stderr, UTF_8));
     } else {
-      System.out.println(result.getStdoutRaw().toStringUtf8());
+      System.out.println(result.getStderrRaw().toStringUtf8());
     }
 
     System.out.println("\nStdout buffer:");
     if (result.hasStdoutDigest()) {
-      byte[] stderr = cache.downloadBlob(result.getStdoutDigest());
-      System.out.println(new String(stderr, UTF_8));
+      byte[] stdout = cache.downloadBlob(result.getStdoutDigest());
+      System.out.println(new String(stdout, UTF_8));
     } else {
       System.out.println(result.getStdoutRaw().toStringUtf8());
     }
@@ -301,8 +310,8 @@ public class RemoteClient {
             .addCommand("getdir", getDirCommand)
             .addCommand("getoutdir", getOutDirCommand)
             .addCommand("cat", catCommand)
-            .addCommand("show_action", showActionCommand)
-            .addCommand("show_action_result", showActionResultCommand)
+            .addCommand("show_action", showActionCommand, "sa")
+            .addCommand("show_action_result", showActionResultCommand, "sar")
             .build();
 
     try {
@@ -407,7 +416,8 @@ public class RemoteClient {
       ActionResult.Builder builder = ActionResult.newBuilder();
       FileInputStream fin = new FileInputStream(showActionResultCommand.file);
       TextFormat.getParser().merge(new InputStreamReader(fin), builder);
-      client.printActionResult(builder.build(), showActionResultCommand.limit);
+      client.printActionResult(
+          builder.build(), showActionResultCommand.limit, showActionResultCommand.showRawOutputs);
       return;
     }
   }
