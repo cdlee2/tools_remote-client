@@ -180,6 +180,22 @@ public final class RemoteClientOptions {
     public boolean showRawOutputs = false;
   }
 
+  @Parameters(
+      commandDescription = "Sets up a directory and docker command to locally run a single"
+      + "action given its Action proto. This requires the Action's inputs to be stored in CAS so"
+      + "that they can be retrieved.",
+      separators = "=")
+  public static class RunCommand {
+    @Parameter(
+        names = {"--textproto", "-p"},
+        required = true,
+        converter = FileConverter.class,
+        description = "Path to the Action proto stored in protobuf text format to be run in the "
+            + "container."
+    )
+    public File file = null;
+  }
+
   /** Converter for hex_hash/size_bytes string to a Digest object. */
   public static class DigestConverter implements IStringConverter<Digest> {
     @Override
