@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** A standalone client for interacting with remote caches in Bazel. */
 public class RemoteClient {
@@ -172,20 +173,26 @@ public class RemoteClient {
     }
   }
 
+  // Given an argument array, output the corresponding bash command to run the command with these
+  // arguments.
+  private static String getCommandLine(List<String> args) {
+    List<String> escapedArgs =
+        args.stream()
+            .map(arg -> escapeBash(arg))
+            .collect(Collectors.toList());
+    return SPACE_JOINER.join(escapedArgs);
+  }
+
   // Outputs a bash executable line that corresponds to executing the given command.
   private static void printCommand(Command command) {
-    List<String> escapedCommand = new ArrayList<>();
-
-    for (String arg : command.getArgumentsList()) {
-      escapedCommand.add(escapeBash(arg));
-    }
-
     for (EnvironmentVariable var : command.getEnvironmentVariablesList()) {
       System.out.printf("%s=%s \\\n", escapeBash(var.getName()), escapeBash(var.getValue()));
     }
     System.out.print("  ");
-    System.out.println(SPACE_JOINER.join(escapedCommand));
+
+    System.out.println(getCommandLine(command.getArgumentsList()));
   }
+
 
   private static void printList(List<String> list, int limit) {
     if (list.isEmpty()) {
