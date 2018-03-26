@@ -51,27 +51,15 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** A standalone client for interacting with remote caches in Bazel. */
 public class RemoteClient {
 
   private final AbstractRemoteActionCache cache;
   private final DigestUtil digestUtil;
-
-  private static final Joiner SPACE_JOINER = Joiner.on(' ');
-  private static final Escaper STRONGQUOTE_ESCAPER =
-      new CharEscaperBuilder().addEscape('\'', "'\\''").toEscaper();
-  private static final CharMatcher SAFECHAR_MATCHER =
-      CharMatcher.anyOf("@%-_+:,./")
-          .or(CharMatcher.inRange('0', '9')) // We can't use CharMatcher.javaLetterOrDigit(),
-          .or(CharMatcher.inRange('a', 'z')) // that would also accept non-ASCII digits and
-          .or(CharMatcher.inRange('A', 'Z')) // letters.
-          .precomputed();
 
   private RemoteClient(AbstractRemoteActionCache cache) {
     this.cache = cache;
@@ -159,40 +147,15 @@ public class RemoteClient {
     return tree.getChildrenList().stream().mapToInt(dir -> dir.getFilesCount()).sum();
   }
 
-  // Escape an argument so that it can passed as a single argument in bash command line. Unless the
-  // argument contains no special characters, it will be wrapped in single quotes to escape special
-  // behaviour.
-  private static String escapeBash(String arg) {
-    final String s = arg.toString();
-    if (s.isEmpty()) {
-      // Empty string is a special case: needs to be quoted to ensure that it
-      // gets treated as a separate argument.
-      return "''";
-    } else {
-      return SAFECHAR_MATCHER.matchesAllOf(s) ? s : "'" + STRONGQUOTE_ESCAPER.escape(s) + "'";
-    }
-  }
-
-  // Given an argument array, output the corresponding bash command to run the command with these
-  // arguments.
-  private static String getCommandLine(List<String> args) {
-    List<String> escapedArgs =
-        args.stream()
-            .map(arg -> escapeBash(arg))
-            .collect(Collectors.toList());
-    return SPACE_JOINER.join(escapedArgs);
-  }
-
   // Outputs a bash executable line that corresponds to executing the given command.
   private static void printCommand(Command command) {
     for (EnvironmentVariable var : command.getEnvironmentVariablesList()) {
-      System.out.printf("%s=%s \\\n", escapeBash(var.getName()), escapeBash(var.getValue()));
+      System.out.printf("%s=%s \\\n", var.getName(), ShellEscaper.escapeString(var.getValue()));
     }
     System.out.print("  ");
 
-    System.out.println(getCommandLine(command.getArgumentsList()));
+    System.out.println(ShellEscaper.escapeJoinAll(command.getArgumentsList()));
   }
-
 
   private static void printList(List<String> list, int limit) {
     if (list.isEmpty()) {
