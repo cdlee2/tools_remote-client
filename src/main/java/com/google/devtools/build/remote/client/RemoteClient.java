@@ -42,12 +42,10 @@ import com.google.devtools.remoteexecution.v1test.DirectoryNode;
 import com.google.devtools.remoteexecution.v1test.FileNode;
 import com.google.devtools.remoteexecution.v1test.OutputDirectory;
 import com.google.devtools.remoteexecution.v1test.OutputFile;
-import com.google.devtools.remoteexecution.v1test.Platform;
 import com.google.devtools.remoteexecution.v1test.RequestMetadata;
 import com.google.devtools.remoteexecution.v1test.ToolDetails;
 import com.google.devtools.remoteexecution.v1test.Tree;
 import com.google.protobuf.TextFormat;
-import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -56,11 +54,9 @@ import java.io.OutputStream;
 import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.stream.Collectors;
 
 /** A standalone client for interacting with remote caches in Bazel. */
@@ -307,59 +303,6 @@ public class RemoteClient {
     }
   }
 
-  // Checks Action for docker container definition. If no docker container specified, returns
-  // null. Otherwise returns docker container name from the parameters.
-  private String dockerContainer(Action action) {
-    String result = null;
-    for (Platform.Property property : action.getPlatform().getPropertiesList()) {
-      if (property.getName().equals(CONTAINER_IMAGE_ENTRY_NAME)) {
-        if (result != null) {
-          // Multiple container name entries
-          throw new IllegalArgumentException(
-              String.format(
-                  "Multiple entries for %s in action.Platform", CONTAINER_IMAGE_ENTRY_NAME));
-        }
-        result = property.getValue();
-        if (!result.startsWith(DOCKER_IMAGE_PREFIX)) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "%s: Docker images must be stored in gcr.io with an image spec in the form "
-                      + "'docker://gcr.io/{IMAGE_NAME}'",
-                  CONTAINER_IMAGE_ENTRY_NAME));
-        }
-        result = result.substring(DOCKER_IMAGE_PREFIX.length());
-      }
-    }
-    return result;
-  }
-
-  private String getDockerCommand(Action action, Command command, String pathString)
-      throws IOException {
-    String container = dockerContainer(action);
-    if (container == null) {
-      throw new IllegalArgumentException("No docker image specified in given Action.");
-    }
-    List<String> commandElements = new ArrayList<>();
-    commandElements.add("docker");
-    commandElements.add("run");
-
-    String dockerPathString = pathString + "-docker";
-    commandElements.add("-v");
-    commandElements.add(pathString + ":" + dockerPathString);
-    commandElements.add("-w");
-    commandElements.add(dockerPathString);
-
-    for (EnvironmentVariable var : command.getEnvironmentVariablesList()) {
-      commandElements.add("-e");
-      commandElements.add(var.getName() + "=" + var.getValue());
-    }
-
-    commandElements.add(container);
-    commandElements.addAll(command.getArgumentsList());
-
-    return getCommandLine(commandElements);
-  }
-
   private void setupDocker(Action action, Path root) throws IOException {
     System.out.printf("Setting up Action in directory %s...\n", root.toAbsolutePath());
     Command command;
@@ -389,7 +332,7 @@ public class RemoteClient {
       java.nio.file.Files.createDirectories(dir);
     }
 
-    String dockerCommand = getDockerCommand(action, command, root.toString());
+    String dockerCommand = DockerUtils.getDockerCommand(action, command, root.toString());
     System.out.println("\nSuccessfully setup Action in directory " + root.toString() + ".");
     System.out.println("\nTo run the Action locally, run:");
     System.out.println("  " + dockerCommand);
