@@ -20,12 +20,14 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.google.common.hash.Hashing;
 import com.google.devtools.build.lib.remote.logging.RemoteExecutionLog.LogEntry;
+import com.google.common.io.Files;
 import com.google.devtools.build.remote.client.RemoteClientOptions.CatCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetOutDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.LsOutDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.PrintLogCommand;
+import com.google.devtools.build.remote.client.RemoteClientOptions.RunCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.ShowActionCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.ShowActionResultCommand;
 import com.google.devtools.remoteexecution.v1test.Action;
@@ -48,6 +50,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -260,6 +263,44 @@ public class RemoteClient {
     }
   }
 
+  // Given a docker run action, sets up a directory for an Action to be run in (download Action
+  // inputs, set up output directories), and display a docker command that will run the Action.
+  private void setupDocker(Action action, Path root) throws IOException {
+    System.out.printf("Setting up Action in directory %s...\n", root.toAbsolutePath());
+    Command command;
+    try {
+      command = Command.parseFrom(cache.downloadBlob(action.getCommandDigest()));
+    } catch (IOException e) {
+      throw new IOException("Failed to get Command for Action.", e);
+    }
+
+    try {
+      cache.downloadDirectory(root, action.getInputRootDigest());
+    } catch (IOException e) {
+      throw new IOException("Failed to download action inputs.", e);
+    }
+
+    // Setup directory structure for outputs.
+    for (String output : action.getOutputFilesList()) {
+      Path file = root.resolve(output);
+      if (java.nio.file.Files.exists(file)) {
+        throw new FileSystemAlreadyExistsException("Output file already exists: " + file);
+      }
+      Files.createParentDirs(file.toFile());
+    }
+    for (String output : action.getOutputDirectoriesList()) {
+      Path dir = root.resolve(output);
+      if (java.nio.file.Files.exists(dir)) {
+        throw new FileSystemAlreadyExistsException("Output directory already exists: " + dir);
+      }
+      java.nio.file.Files.createDirectories(dir);
+    }
+    String dockerCommand = DockerUtil.getDockerCommand(action, command, root.toString());
+    System.out.println("\nSuccessfully setup Action in directory " + root.toString() + ".");
+    System.out.println("\nTo run the Action locally, run:");
+    System.out.println("  " + dockerCommand);
+  }
+
   public static void main(String[] args) throws Exception {
     AuthAndTLSOptions authAndTlsOptions = new AuthAndTLSOptions();
     RemoteOptions remoteOptions = new RemoteOptions();
@@ -272,6 +313,7 @@ public class RemoteClient {
     ShowActionCommand showActionCommand = new ShowActionCommand();
     ShowActionResultCommand showActionResultCommand = new ShowActionResultCommand();
     PrintLogCommand printLogCommand = new PrintLogCommand();
+    RunCommand runCommand = new RunCommand();
 
     JCommander optionsParser =
         JCommander.newBuilder()
@@ -287,6 +329,7 @@ public class RemoteClient {
             .addCommand("show_action", showActionCommand, "sa")
             .addCommand("show_action_result", showActionResultCommand, "sar")
             .addCommand("printlog", printLogCommand)
+            .addCommand("run", runCommand)
             .build();
 
     try {
@@ -407,5 +450,16 @@ public class RemoteClient {
       return;
     }
 
+    if (optionsParser.getParsedCommand() == "run") {
+      Action.Builder builder = Action.newBuilder();
+      FileInputStream fin = new FileInputStream(runCommand.file);
+      TextFormat.getParser().merge(new InputStreamReader(fin), builder);
+      if (runCommand.path != null) {
+        client.setupDocker(builder.build(), runCommand.path);
+      } else {
+        client.setupDocker(builder.build(), Files.createTempDir().toPath());
+      }
+      return;
+    }
   }
 }
