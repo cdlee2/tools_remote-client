@@ -28,7 +28,7 @@ hello-world:
         --digest=762670a6d50679e5495d3a489290bf2b3845172de3c048476668e91f6fc42b8e/18544 \
         --file=/tmp/hello-world
 
-Given the digest to a Directory which is in CAS, this directory can recursively list the files and
+Given the digest to a Directory which is in CAS, this tool can recursively list the files and
 subdirectories which make up that directory with the `ls` command. For example, to list a Directory
 with digest d1c2cad73bf385e1ebc7f7433781a9a5807d425de9426c11d770b5123e5c6a5b/82:
 
@@ -41,7 +41,7 @@ with digest d1c2cad73bf385e1ebc7f7433781a9a5807d425de9426c11d770b5123e5c6a5b/82:
     examples/cpp/hello-lib.h [File content digest: fbc71c527a8d91d1b4414484811c20edc0369d0ccdfcfd562ebd01726141bf51/368]
     examples/cpp/hello-world.cc [File content digest: 6cd9f4d242f4441a375539146b0cdabb559c6184921aede45d5a0ed7b84d5253/747]
 
-This Directory can also be downloaded using the `getdir` command:
+Similarily, a Directory can also be downloaded to a local path using the `getdir` command:
 d1c2cad73bf385e1ebc7f7433781a9a5807d425de9426c11d770b5123e5c6a5b/82:
 
     $ bazel-bin/remote_client \
@@ -56,8 +56,8 @@ d1c2cad73bf385e1ebc7f7433781a9a5807d425de9426c11d770b5123e5c6a5b/82:
 ### <a name="readlog"></a>Printing gRPC log files
 
 Bazel can dump a log of remote execution related gRPC calls made during a remote build by
-running the remote build with `--experimental_remote_grpc_log=PATH_TO_LOG` specified. This creates a
-file consisting of serialized log entry protobufs which can be printed by this tool in a
+running the remote build with the `--experimental_remote_grpc_log=PATH_TO_LOG` flag specified. This
+creates a file consisting of serialized log entry protobufs which can be printed by this tool in a
 human-readable way with the `printlog` command:
 
     $ bazel-bin/remote_client printlog -f PATH_TO_LOG
@@ -70,7 +70,7 @@ action locally in that directory. Action protos in text format can be obtained b
 log](#readlog) for a Bazel run that executed that Action remotely and then copying the Action proto
 out of the printed log entry for the Execute call that executed that Action.
 
-The given Action can be inspected with `show_action`:
+A given Action can be inspected with the `show_action` command:
 
     $ cat ~/my_action
     command_digest {
@@ -114,7 +114,7 @@ The given Action can be inspected with `show_action`:
 Note that this action has a `container-image` platform property which specifies a container that the
 action is to run in.
 
-Using the `run` command, the Action can be setup in a local directory and run with the provided
+Now, using the `run` command, the Action can be setup in a local directory and run with the provided
 Docker command:
 
     $ bazel-bin/remote_client \

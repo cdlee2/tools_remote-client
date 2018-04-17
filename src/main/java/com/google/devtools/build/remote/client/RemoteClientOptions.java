@@ -181,18 +181,18 @@ public final class RemoteClientOptions {
   }
 
   @Parameters(
-      commandDescription =
-          "Write all log entries from a Bazel gRPC log to standard output. The Bazel gRPC log "
-              + "consists of a sequence of delimited serialized LogEntry protobufs, as produced by "
-              + "the method LogEntry.writeDelimitedTo(OutputStream).",
-      separators = "="
+    commandDescription =
+        "Write all log entries from a Bazel gRPC log to standard output. The Bazel gRPC log "
+            + "consists of a sequence of delimited serialized LogEntry protobufs, as produced by "
+            + "the method LogEntry.writeDelimitedTo(OutputStream).",
+    separators = "="
   )
   public static class PrintLogCommand {
     @Parameter(
-        names = { "--file", "-f" },
-        required = true,
-        converter = FileConverter.class,
-        description = "Path to log file."
+      names = {"--file", "-f"},
+      required = true,
+      converter = FileConverter.class,
+      description = "Path to log file."
     )
     public File file = null;
   }

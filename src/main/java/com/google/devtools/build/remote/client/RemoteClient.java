@@ -19,8 +19,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.google.common.hash.Hashing;
-import com.google.devtools.build.lib.remote.logging.RemoteExecutionLog.LogEntry;
 import com.google.common.io.Files;
+import com.google.devtools.build.lib.remote.logging.RemoteExecutionLog.LogEntry;
 import com.google.devtools.build.remote.client.RemoteClientOptions.CatCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetDirCommand;
 import com.google.devtools.build.remote.client.RemoteClientOptions.GetOutDirCommand;
@@ -62,8 +62,8 @@ public class RemoteClient {
 
   private final AbstractRemoteActionCache cache;
   private final DigestUtil digestUtil;
-  private static final String DELIMETER = "\n---------------------------------------------------------\n";
-
+  private static final String DELIMETER =
+      "\n---------------------------------------------------------\n";
 
   private RemoteClient(AbstractRemoteActionCache cache) {
     this.cache = cache;
