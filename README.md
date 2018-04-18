@@ -92,7 +92,7 @@ A given Action can be inspected with the `show_action` command:
     $ bazel-bin/remote_client \
         --remote_cache=localhost:8080 \
         show_action \
-        --textproto=~/my_action \
+        --textproto=~/my_action
     Command [digest: ecd108198bd58dd643b604c55f3d2b1079b1251e68fbed2632c2b8f8afcff7fa/2113]:
     external/bazel_tools/tools/test/test-setup.sh examples/cpp/hello-success_test
 

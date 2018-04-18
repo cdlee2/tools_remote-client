@@ -38,7 +38,7 @@ public final class DockerUtil {
   /**
    * Checks Action for Docker container definition.
    *
-   * @return The docker container for the Action. If not container could be found, returns null.
+   * @return The docker container for the Action. If no container could be found, returns null.
    */
   private static @Nullable String dockerContainer(Action action) {
     String result = null;
@@ -83,7 +83,6 @@ public final class DockerUtil {
     commandElements.add("run");
 
     long uid = getUid();
-    System.out.println(uid);
     if (uid >= 0) {
       commandElements.add("-u");
       commandElements.add(Long.toString(uid));
