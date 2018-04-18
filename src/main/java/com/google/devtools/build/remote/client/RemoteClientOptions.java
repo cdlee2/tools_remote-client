@@ -195,6 +195,39 @@ public final class RemoteClientOptions {
       description = "Path to log file."
     )
     public File file = null;
+
+    @Parameter(
+      names = {"--failures_only", "-n"},
+      description =
+          "Only print log entries where the call closed with non-zero status. Also excludes calls "
+              + "with NOT_FOUND exit status caused by action cache miss."
+    )
+    public boolean failuresOnly;
+
+    @Parameter(
+      names = {"--action_id", "-a"},
+      description = "Only print log entries with the given Action hash (without size)."
+    )
+    public String actionId = "";
+
+    @Parameter(
+      names = {"--match_method", "-m"},
+      description =
+          "Only print log entries whose method name matches the given "
+              + "(case-insensitive) regex. As in grep, the regular expression only needs to match a "
+              + "subsequence of the full method name (e.g. ByteStream, Execute)."
+    )
+    public String method = "";
+
+    @Parameter(
+      names = {"--group_by_action", "-g"},
+      description =
+          "Display entries grouped by action instead of individually. Groups of "
+              + "entries each action are printed ordered by the position of the first log entry for "
+              + "that action in the log. Entries for a specific action are printed in the order they "
+              + "appear in the log."
+    )
+    public boolean groupByAction;
   }
 
   @Parameters(
