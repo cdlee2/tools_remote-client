@@ -70,6 +70,10 @@ public class RemoteClient {
     this.digestUtil = cache.getDigestUtil();
   }
 
+  public AbstractRemoteActionCache getCache() {
+    return cache;
+  }
+
   // Prints the details (path and digest) of a DirectoryNode.
   private void printDirectoryNodeDetails(DirectoryNode directoryNode, Path directoryPath) {
     System.out.printf(
@@ -186,7 +190,7 @@ public class RemoteClient {
     Tree tree = cache.getTree(action.getInputRootDigest());
     System.out.printf(
         "\nInput files [total: %d, root Directory digest: %s]:\n",
-        getNumFiles(tree), digestUtil.toString(action.getCommandDigest()));
+        getNumFiles(tree), digestUtil.toString(action.getInputRootDigest()));
     listTree(Paths.get(""), tree, limit);
 
     System.out.println("\nOutput files:");
@@ -301,6 +305,109 @@ public class RemoteClient {
     System.out.println("  " + dockerCommand);
   }
 
+  private static RemoteClient makeClientWithOptions(
+      RemoteOptions remoteOptions, AuthAndTLSOptions authAndTlsOptions) throws IOException {
+    DigestUtil digestUtil = new DigestUtil(Hashing.sha256());
+    AbstractRemoteActionCache cache;
+
+    if (GrpcRemoteCache.isRemoteCacheOptions(remoteOptions)) {
+      cache = new GrpcRemoteCache(remoteOptions, authAndTlsOptions, digestUtil);
+      RequestMetadata metadata =
+          RequestMetadata.newBuilder()
+              .setToolDetails(ToolDetails.newBuilder().setToolName("remote_client"))
+              .build();
+      TracingMetadataUtils.contextWithMetadata(metadata).attach();
+    } else {
+      throw new UnsupportedOperationException("Only gRPC remote cache supported currently.");
+    }
+    return new RemoteClient(cache);
+  }
+
+  private static void doPrintLog(PrintLogCommand options) throws IOException {
+    try (InputStream in = new FileInputStream(options.file)) {
+      LogEntry entry;
+      while ((entry = LogEntry.parseDelimitedFrom(in)) != null) {
+        System.out.println(entry);
+        System.out.println(DELIMETER);
+      }
+    }
+  }
+
+  private static void doLs(LsCommand options, RemoteClient client) throws IOException {
+    Tree tree = client.getCache().getTree(options.digest);
+    client.listTree(Paths.get(""), tree, options.limit);
+  }
+
+  private static void doLsOutDir(LsOutDirCommand options, RemoteClient client) throws IOException {
+    OutputDirectory dir;
+    try {
+      dir = OutputDirectory.parseFrom(client.getCache().downloadBlob(options.digest));
+    } catch (IOException e) {
+      throw new IOException("Failed to obtain OutputDirectory.", e);
+    }
+    client.listOutputDirectory(dir, options.limit);
+  }
+
+  private static void doGetDir(GetDirCommand options, RemoteClient client) throws IOException {
+    client.getCache().downloadDirectory(options.path, options.digest);
+  }
+
+  private static void doGetOutDir(GetOutDirCommand options, RemoteClient client)
+      throws IOException {
+    OutputDirectory dir;
+    try {
+      dir = OutputDirectory.parseFrom(client.getCache().downloadBlob(options.digest));
+    } catch (IOException e) {
+      throw new IOException("Failed to obtain OutputDirectory.", e);
+    }
+    client.getCache().downloadOutputDirectory(dir, options.path);
+  }
+
+  private static void doCat(CatCommand options, RemoteClient client) throws IOException {
+    OutputStream output;
+    if (options.file != null) {
+      output = new FileOutputStream(options.file);
+
+      if (!options.file.exists()) {
+        options.file.createNewFile();
+      }
+    } else {
+      output = System.out;
+    }
+
+    try {
+      client.getCache().downloadBlob(options.digest, output);
+    } catch (CacheNotFoundException e) {
+      System.err.println("Error: " + e);
+    } finally {
+      output.close();
+    }
+  }
+
+  private static void doShowAction(ShowActionCommand options, RemoteClient client)
+      throws IOException {
+    Action.Builder builder = Action.newBuilder();
+    FileInputStream fin = new FileInputStream(options.file);
+    TextFormat.getParser().merge(new InputStreamReader(fin), builder);
+    client.printAction(builder.build(), options.limit);
+  }
+
+  private static void doShowActionResult(ShowActionResultCommand options, RemoteClient client)
+      throws IOException {
+    ActionResult.Builder builder = ActionResult.newBuilder();
+    FileInputStream fin = new FileInputStream(options.file);
+    TextFormat.getParser().merge(new InputStreamReader(fin), builder);
+    client.printActionResult(builder.build(), options.limit, options.showRawOutputs);
+  }
+
+  private static void doRun(RunCommand options, RemoteClient client) throws IOException {
+    Action.Builder builder = Action.newBuilder();
+    FileInputStream fin = new FileInputStream(options.file);
+    TextFormat.getParser().merge(new InputStreamReader(fin), builder);
+    client.setupDocker(
+        builder.build(), options.path != null ? options.path : Files.createTempDir().toPath());
+  }
+
   public static void main(String[] args) throws Exception {
     AuthAndTLSOptions authAndTlsOptions = new AuthAndTLSOptions();
     RemoteOptions remoteOptions = new RemoteOptions();
@@ -351,115 +458,37 @@ public class RemoteClient {
       System.exit(1);
     }
 
-    if (optionsParser.getParsedCommand() == "printlog") {
-      try (InputStream in = new FileInputStream(printLogCommand.file)) {
-        while (in.available() > 0) {
-          LogEntry entry = LogEntry.parseDelimitedFrom(in);
-          System.out.println(entry);
-          System.out.println(DELIMETER);
-        }
-      }
-      return;
-    }
-
-    // All commands after this require a remote client.
-    DigestUtil digestUtil = new DigestUtil(Hashing.sha256());
-    AbstractRemoteActionCache cache;
-
-    if (GrpcRemoteCache.isRemoteCacheOptions(remoteOptions)) {
-      cache = new GrpcRemoteCache(remoteOptions, authAndTlsOptions, digestUtil);
-      RequestMetadata metadata =
-          RequestMetadata.newBuilder()
-              .setToolDetails(ToolDetails.newBuilder().setToolName("remote_client"))
-              .build();
-      TracingMetadataUtils.contextWithMetadata(metadata).attach();
-    } else {
-      throw new UnsupportedOperationException(
-          "Only gRPC remote cache supported currently (cache not configured in options).");
-    }
-
-    RemoteClient client = new RemoteClient(cache);
-
-    if (optionsParser.getParsedCommand() == "ls") {
-      Tree tree = cache.getTree(lsCommand.digest);
-      client.listTree(Paths.get(""), tree, lsCommand.limit);
-      return;
-    }
-
-    if (optionsParser.getParsedCommand() == "lsoutdir") {
-      OutputDirectory dir;
-      try {
-        dir = OutputDirectory.parseFrom(cache.downloadBlob(lsOutDirCommand.digest));
-      } catch (IOException e) {
-        throw new IOException("Failed to obtain OutputDirectory.", e);
-      }
-      client.listOutputDirectory(dir, lsOutDirCommand.limit);
-    }
-
-    if (optionsParser.getParsedCommand() == "getdir") {
-      cache.downloadDirectory(getDirCommand.path, getDirCommand.digest);
-      return;
-    }
-
-    if (optionsParser.getParsedCommand() == "getoutdir") {
-      OutputDirectory dir;
-      try {
-        dir = OutputDirectory.parseFrom(cache.downloadBlob(getOutDirCommand.digest));
-      } catch (IOException e) {
-        throw new IOException("Failed to obtain OutputDirectory.", e);
-      }
-      cache.downloadOutputDirectory(dir, getOutDirCommand.path);
-    }
-
-    if (optionsParser.getParsedCommand() == "cat") {
-      OutputStream output;
-      if (catCommand.file != null) {
-        output = new FileOutputStream(catCommand.file);
-
-        if (!catCommand.file.exists()) {
-          catCommand.file.createNewFile();
-        }
-      } else {
-        output = System.out;
-      }
-
-      try {
-        cache.downloadBlob(catCommand.digest, output);
-      } catch (CacheNotFoundException e) {
-        System.err.println("Error: " + e);
-      } finally {
-        output.close();
-      }
-      return;
-    }
-
-    if (optionsParser.getParsedCommand() == "show_action") {
-      Action.Builder builder = Action.newBuilder();
-      FileInputStream fin = new FileInputStream(showActionCommand.file);
-      TextFormat.getParser().merge(new InputStreamReader(fin), builder);
-      client.printAction(builder.build(), showActionCommand.limit);
-      return;
-    }
-
-    if (optionsParser.getParsedCommand() == "show_action_result") {
-      ActionResult.Builder builder = ActionResult.newBuilder();
-      FileInputStream fin = new FileInputStream(showActionResultCommand.file);
-      TextFormat.getParser().merge(new InputStreamReader(fin), builder);
-      client.printActionResult(
-          builder.build(), showActionResultCommand.limit, showActionResultCommand.showRawOutputs);
-      return;
-    }
-
-    if (optionsParser.getParsedCommand() == "run") {
-      Action.Builder builder = Action.newBuilder();
-      FileInputStream fin = new FileInputStream(runCommand.file);
-      TextFormat.getParser().merge(new InputStreamReader(fin), builder);
-      if (runCommand.path != null) {
-        client.setupDocker(builder.build(), runCommand.path);
-      } else {
-        client.setupDocker(builder.build(), Files.createTempDir().toPath());
-      }
-      return;
+    switch (optionsParser.getParsedCommand()) {
+      case "printlog":
+        doPrintLog(printLogCommand);
+        break;
+      case "ls":
+        doLs(lsCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "lsoutdir":
+        doLsOutDir(lsOutDirCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "getdir":
+        doGetDir(getDirCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "getoutdir":
+        doGetOutDir(getOutDirCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "cat":
+        doCat(catCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "show_action":
+        doShowAction(showActionCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "show_action_result":
+        doShowActionResult(
+            showActionResultCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      case "run":
+        doRun(runCommand, makeClientWithOptions(remoteOptions, authAndTlsOptions));
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown command.");
     }
   }
 }
