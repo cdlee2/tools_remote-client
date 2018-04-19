@@ -324,13 +324,7 @@ public class RemoteClient {
   }
 
   private static void doPrintLog(PrintLogCommand options) throws IOException {
-    try (InputStream in = new FileInputStream(options.file)) {
-      LogEntry entry;
-      while ((entry = LogEntry.parseDelimitedFrom(in)) != null) {
-        System.out.println(entry);
-        System.out.println(DELIMETER);
-      }
-    }
+    LogPrintingUtils.printLog(options);
   }
 
   private static void doLs(LsCommand options, RemoteClient client) throws IOException {
