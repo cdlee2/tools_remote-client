@@ -52,7 +52,7 @@ public class LogPrintingUtils {
         }
         Operation o = ch.getData().unpack(Operation.class);
         if (o.getResultCase() == ResultCase.ERROR && o.getError().getCode() != Code.OK.value()) {
-          System.out.printf("Error status in ChangeBatches: %s\n", o.getError().toString());
+          System.out.printf("Operation contained error: %s\n", o.getError().toString());
           return;
         } else if (o.getResultCase() == ResultCase.RESPONSE && o.getDone()) {
           System.out.println("ExecuteResponse extracted:");
@@ -91,7 +91,7 @@ public class LogPrintingUtils {
    * Gives comparator values for timestamps.
    *
    * @return {@code 0} if {@code t1} is equal to {@code t2}; a value less than {code 0} if {@code
-   *     t1} occurs before {@code t2}; a value greater than {code 0} if{@code t1} occurs after
+   *     t1} occurs before {@code t2}; a value greater than {code 0} if {@code t1} occurs after
    *     {@code t2}.
    */
   private static int compareTimestamps(Timestamp t1, Timestamp t2) {
@@ -108,10 +108,12 @@ public class LogPrintingUtils {
    */
   private static void printEntriesGroupedByAction(PrintLogCommand options) throws IOException {
     Map<String, Multiset<LogEntry>> actionMap = new HashMap<>();
+    int numSkipped = 0;
     try (InputStream in = new FileInputStream(options.file)) {
       LogEntry entry;
       while ((entry = LogEntry.parseDelimitedFrom(in)) != null) {
         if (!entry.hasMetadata()) {
+          numSkipped++;
           continue;
         }
         String hash = entry.getMetadata().getActionId();
@@ -130,6 +132,10 @@ public class LogPrintingUtils {
         printLogEntry(entry);
         System.out.print(DELIMETER);
       }
+    }
+    if (numSkipped > 0) {
+      System.out.printf(
+          "WARNING: Skipped %d entrie(s) due to absence of request metadata.\n", numSkipped);
     }
   }
 
